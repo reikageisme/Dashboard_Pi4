@@ -134,10 +134,6 @@ fan_thread = threading.Thread(target=auto_fan_loop, daemon=True)
 fan_thread.start()
 
 # --- Routes ---
-
-
-
-
 @app.route('/api/stats')
 @login_required
 def get_stats():
@@ -260,25 +256,18 @@ def system_power():
 @app.route('/api/system_log')
 def system_log():
     try:
-        # If running directly on host, journalctl finds logs automatically.
-        # If running in Docker, users should mount /var/log/journal to /var/log/journal 
-        # but even then, journalctl often finds it if permissions are right.
-        # However, to be safe for "direct on Pi" usage as requested, we just run it directly.
-        cmd = ['journalctl', '-n', '100', '--no-pager']
-             
-        log_out = subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT)
-        return jsonify({'log': log_out})
-    except subprocess.CalledProcessError as e:
-        return jsonify({'log': f"Error reading log: {e.output}"})
+        # Lấy log gốc (có thể lấy 200 dòng để lọc cho thoải mái)
+        log_out = subprocess.check_output(['journalctl', '-n', '200', '--no-pager'], text=True, stderr=subprocess.STDOUT)
+        
+        # LỌC RÁC: Bỏ qua những dòng chứa chữ "GET /api/"
+        filtered_lines = [line for line in log_out.split('\n') if "GET /api/" not in line]
+        
+        # Ghép lại thành văn bản, chỉ lấy 100 dòng mới nhất sau khi đã lọc
+        final_log = "\n".join(filtered_lines[-100:])
+        
+        return jsonify({'log': final_log})
     except Exception as e:
-        try:
-            # Fallback
-            if os.path.exists('/var/log/syslog'):
-                 res = subprocess.check_output(['tail', '-n', '100', '/var/log/syslog'], text=True)
-                 return jsonify({'log': res})
-        except:
-             pass
-        return jsonify({'log': f"Log access failed: {str(e)}\nEnsure /var/log is mounted."})
+        return jsonify({'log': f"Lỗi đọc log: {str(e)}"})
 
 def get_real_docker_stats():
     stats_dict = {}
