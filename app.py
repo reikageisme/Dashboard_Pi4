@@ -285,14 +285,51 @@ def get_real_docker_stats():
                     name, cpu, mem_full = parts
                     # mem_full format: "15.4MiB / 7.64GiB", take "15.4MiB"
                     mem_used = mem_full.split(' / ')[0] 
-                    stats_dict[name] = {
-                        'cpu': cpu,
-                        'mem': mem_used
-                    }
+                    
+                    # Fix: If Docker returns 0B (cgroup missing on Pi), use psutil fallback
+                    if mem_used == "0B":
+                        try:
+                            # We can't easily map name -> pid here without client.
+                            # So mark it as needing fallback
+                            stats_dict[name] = {'cpu': cpu, 'mem': 'BATCH_FALLBACK'} 
+                        except:
+                            stats_dict[name] = {'cpu': cpu, 'mem': mem_used}
+                    else:
+                        stats_dict[name] = {
+                            'cpu': cpu,
+                            'mem': mem_used
+                        }
         return stats_dict
     except Exception as e:
         print(f"Error getting docker stats: {e}")
         return {}
+        
+def get_container_memory_usage(container):
+    try:
+        # Get PID of the container's main process
+        pid = container.attrs['State']['Pid']
+        if pid == 0: return "0 B"
+
+        total_rss = 0
+        try:
+            p = psutil.Process(pid)
+            total_rss += p.memory_info().rss
+            for child in p.children(recursive=True):
+                try:
+                    total_rss += child.memory_info().rss
+                except: pass
+        except psutil.NoSuchProcess:
+            pass
+            
+        # Convert to readable string
+        if total_rss < 1024 * 1024:
+            return f"{round(total_rss/1024, 2)} KiB"
+        elif total_rss < 1024 * 1024 * 1024:
+            return f"{round(total_rss/1024/1024, 2)} MiB"
+        else:
+             return f"{round(total_rss/1024/1024/1024, 2)} GiB"
+    except Exception as e:
+        return "0 B"
 
 @app.route('/api/docker/containers')
 @login_required
@@ -311,11 +348,21 @@ def get_containers():
             mem_usage = "0 B"
             
             # Use real stats if available and container is running
-            if c.status == 'running' and c.name in real_stats:
-                cpu_usage = real_stats[c.name]['cpu']
-                mem_usage = real_stats[c.name]['mem']
+            if c.status == 'running':
+                if c.name in real_stats:
+                    s = real_stats[c.name]
+                    if s['mem'] == 'BATCH_FALLBACK':
+                         # Calculate manually via psutil
+                         mem_usage = get_container_memory_usage(c)
+                         cpu_usage = s['cpu'] # Keep docker's CPU if available, or 0.00%
+                    else:
+                         cpu_usage = s['cpu']
+                         mem_usage = s['mem']
+                else:
+                    # Fallback if missed by docker stats (e.g. just started)
+                    mem_usage = get_container_memory_usage(c)
 
-            img_name = c.image.tags[0] if c.image.tags else c.image.id[:12]
+            img_name = c.image.tags[0] if c.image.tags else c.image.id[:12] if c.image.id else "unknown"
             containers_list.append({
                 "id": c.short_id,
                 "name": c.name,
