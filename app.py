@@ -239,17 +239,19 @@ def get_stats():
 def system_power():
     action = request.json.get('action')
     try:
+        # Check if we are running directly on host (simple heuristic or just try direct command first)
+        # If running as root or sudo, direct commands work.
+        # If running as user, sudo might be needed.
+        
+        cmd_prefix = []
+        if os.geteuid() != 0:
+            cmd_prefix = ['sudo']
+
         if action == 'reboot':
-            # Try systemctl first (systemd)
-            # Since we are pid:host, we might be able to talk to system
-            # Or use nsenter
-            import subprocess
-            # This 'nsenter' targeting PID 1 (systemd) usually works if privileged
-            subprocess.Popen(["nsenter", "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid", "--", "reboot"])
+            subprocess.Popen(cmd_prefix + ["reboot"])
             return jsonify({"success": True, "message": "Rebooting..."})
         elif action == 'shutdown':
-            import subprocess
-            subprocess.Popen(["nsenter", "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid", "--", "shutdown", "-h", "now"])
+            subprocess.Popen(cmd_prefix + ["shutdown", "-h", "now"])
             return jsonify({"success": True, "message": "Shutting down..."})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
@@ -258,15 +260,11 @@ def system_power():
 @app.route('/api/system_log')
 def system_log():
     try:
-        # Use journalctl to get last 100 lines of system log
-        # --no-pager makes it output text directly
+        # If running directly on host, journalctl finds logs automatically.
+        # If running in Docker, users should mount /var/log/journal to /var/log/journal 
+        # but even then, journalctl often finds it if permissions are right.
+        # However, to be safe for "direct on Pi" usage as requested, we just run it directly.
         cmd = ['journalctl', '-n', '100', '--no-pager']
-        
-        # Check if we should point to host mounts
-        if os.path.exists('/var/log/journal'):
-             cmd.extend(['-D', '/var/log/journal'])
-        elif os.path.exists('/run/log/journal'):
-             cmd.extend(['-D', '/run/log/journal'])
              
         log_out = subprocess.check_output(cmd, text=True, stderr=subprocess.STDOUT)
         return jsonify({'log': log_out})
