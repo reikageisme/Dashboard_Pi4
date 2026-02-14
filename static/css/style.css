@@ -1,0 +1,59 @@
+body {
+    background-color: #000000;
+    color: #e0e0e0;
+    padding-top: 20px;
+}
+.card {
+    background-color: #1a1a1a;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+    border: 1px solid #333;
+}
+.stat-card {
+    transition: transform 0.2s;
+    height: 100%; /* Force equal height in flex container */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 140px; /* Ensure enough height to match RAM card */
+}
+.stat-label {
+    color: #a0a0a0;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+.stat-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 10px 0;
+}
+.stat-detail {
+    font-size: 0.85rem;
+    color: #888;
+    min-height: 20px; /* Reserve space for detail text to keep alignment */
+    display: block;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    border-color: #666;
+}
+.blink-anim {
+    animation: blinker 1s linear infinite;
+}
+@keyframes blinker {
+    50% { opacity: 0; }
+}
+/* Gauge Chart Layout */
+#speedChart {
+    max-height: 150px;
+}
+.fan-slider-container {
+    padding: 20px;
+}
+.docker-status-running {
+    color: #28a745;
+    font-weight: bold;
+}
+.docker-status-exited {
+    color: #dc3545;
+}

@@ -1,0 +1,22 @@
+services:
+  pi-dashboard:
+    build: .
+    container_name: pi-dashboard
+    ports:
+      - "5000:5000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # (Cái này chắc bác đã có để quản lý docker)
+      - .:/app
+      # Thêm 3 dòng dưới này để đọc log hệ thống:
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    pid: host # Needed for seeing all host processes and rebooting
+    privileged: true
+    devices:
+      - /dev/gpiomem:/dev/gpiomem # For RPi.GPIO (legacy or lgpio mem access)
+      # - /dev/gpiochip0:/dev/gpiochip0 # For new kernel interface used by lgpio - uncomment if needed
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    restart: unless-stopped
+

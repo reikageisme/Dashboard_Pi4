@@ -1,0 +1,7 @@
+flask
+psutil
+docker
+speedtest-cli
+# lgpio is often best installed via apt in the dockerfile or pip if specific version matches, 
+# but we will try to pip install it. If it fails, the code will handle it.
+# rpi-lgpio
