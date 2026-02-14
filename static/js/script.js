@@ -252,18 +252,44 @@ function formatBytes(bytes, decimals = 2) {
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
-function systemPower(action) {
-    if(!confirm(`DANGER: Are you sure you want to ${action.toUpperCase()} the system?`)) return;
-    fetch('/api/system/power', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: action })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if(res.success) showToast('System', res.message);
-        else showToast('Error', res.error, 'bg-danger');
+// --- Helper: Custom Confirm Modal ---
+function showConfirmModal(title, message, onConfirm) {
+    const modalEl = document.getElementById('confirmModal');
+    const modal = new bootstrap.Modal(modalEl);
+    
+    document.getElementById('confirmModalTitle').textContent = title;
+    document.getElementById('confirmModalBody').textContent = message;
+    
+    // Clear old listeners to avoid multiple triggers
+    const confirmBtn = document.getElementById('confirmModalBtn');
+    const newBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+    
+    newBtn.addEventListener('click', () => {
+        modal.hide();
+        onConfirm();
     });
+    
+    modal.show();
+}
+
+function systemPower(action) {
+    showConfirmModal(
+        'System Power', 
+        `DANGER: Are you sure you want to ${action.toUpperCase()} the system?`, 
+        () => {
+            fetch('/api/system/power', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ action: action })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if(res.success) showToast('System', res.message);
+                else showToast('Error', res.error, 'bg-danger');
+            });
+        }
+    );
 }
 
 function showToast(title, message, headerClass = 'bg-primary') {
@@ -352,22 +378,32 @@ function pullImage() {
 }
 
 function imageAction(action, target) {
-    if(action === 'remove' && !confirm('Delete image?')) return;
+    const performAction = () => {
+        fetch('/api/docker/image_action', {
+             method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: action, target: target })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if(res.success) {
+                showToast('Docker', res.message);
+                updateImages();
+            } else {
+                 showToast('Error', res.error, 'bg-danger');
+            }
+        });
+    };
 
-    fetch('/api/docker/image_action', {
-         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: action, target: target })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if(res.success) {
-            showToast('Docker', res.message);
-            updateImages();
-        } else {
-             showToast('Error', res.error, 'bg-danger');
-        }
-    });
+    if(action === 'remove') {
+        showConfirmModal(
+            'Delete Image', 
+            `Are you sure you want to remove image ${target}?`, 
+            performAction
+        );
+    } else {
+        performAction();
+    }
 }
 
 function showLogs(id) {
@@ -384,21 +420,26 @@ function showLogs(id) {
 }
 
 function dockerAction(id, action) {
-    if(!confirm(`Confirm ${action}?`)) return; // Keep it simpler
-    
-    fetch('/api/docker/action', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ id: id, action: action })
-    })
-    .then(r => r.json())
-    .then(res => {
-        if(res.success) {
-            updateDocker(); 
-        } else {
-            alert('Action failed: ' + res.error);
+    showConfirmModal(
+        'Container Action', 
+        `Confirm ${action} for container ${id}?`, 
+        () => {
+            fetch('/api/docker/action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: id, action: action })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if(res.success) {
+                    showToast('Docker', `Container ${id} ${action}ed successfully.`);
+                    updateDocker(); 
+                } else {
+                    showToast('Error', res.error, 'bg-danger');
+                }
+            });
         }
-    });
+    );
 }
 
 // Fan Control Slider
