@@ -256,15 +256,15 @@
                         <div class="card p-3">
                              <h6>Summary</h6>
                              <ul class="list-group list-group-flush">
-                                <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                                <li class="list-group-item d-flex justify-content-between">
                                     <span>Total Queries</span>
                                     <span id="ph-queries">0</span>
                                 </li>
-                                <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                                <li class="list-group-item d-flex justify-content-between">
                                     <span>Ads Blocked</span>
                                     <span id="ph-blocked" class="text-danger">0</span>
                                 </li>
-                                <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                                <li class="list-group-item d-flex justify-content-between">
                                     <span>Percentage</span>
                                     <span id="ph-percent">0%</span>
                                 </li>
@@ -359,13 +359,13 @@
 
             <!-- TERMINAL TAB -->
             <div class="tab-pane fade" id="term-pane" role="tabpanel">
-                <div class="card bg-dark border-secondary mt-3">
-                    <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <span>>_ System Log (journalctl)</span>
                         <button class="btn btn-sm btn-outline-info" onclick="loadLogs()">🔄 Refresh</button>
                     </div>
                     <div class="card-body p-0">
-                        <pre id="log-container" class="bg-black text-success p-3 m-0" style="height: 500px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">
+                        <pre id="log-container" class="p-3 m-0" style="background: rgba(0,0,0,0.5); color: #0f0; height: 500px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 14px; white-space: pre-wrap; word-wrap: break-word;">
 Đang kết nối vào hệ thống Pi...
                         </pre>
                     </div>

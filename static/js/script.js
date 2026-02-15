@@ -363,7 +363,7 @@ function updateNetwork() {
         const list = document.getElementById('ports-list');
         if (list) {
             list.innerHTML = data.map(p => `
-            <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+            <li class="list-group-item d-flex justify-content-between">
                 <span><span class="badge bg-secondary">${p.proto}</span> ${p.port}</span>
                 <span class="text-muted small">${p.address}</span>
             </li>

@@ -1,59 +1,227 @@
+:root {
+    --glass-bg: rgba(20, 20, 20, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-blur: blur(15px);
+    --card-radius: 20px;
+    --accent-color: #0d6efd;
+    --text-primary: #f0f0f0;
+    --text-secondary: #aaaaaa;
+}
+
 body {
-    background-color: #000000;
-    color: #e0e0e0;
-    padding-top: 20px;
+    background: url('/static/images/bg.jpg') no-repeat center center fixed;
+    background-size: cover;
+    color: var(--text-primary);
+    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
 }
+
+/* Base Container Styling */
+.container {
+    padding-top: 2rem;
+    max-width: 1200px;
+}
+
+/* Glassmorphism Cards */
 .card {
-    background-color: #1a1a1a;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.5);
-    border: 1px solid #333;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--card-radius);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    color: var(--text-primary);
 }
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Remove card body specific bg */
+.card-body, .card-header, .card-footer {
+    background: transparent !important;
+    border-color: var(--glass-border);
+}
+
+/* Header Styling */
+h1 {
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    color: white;
+}
+
+.dropdown-menu {
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+}
+
+.dropdown-item {
+    color: var(--text-primary);
+}
+
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+/* Tabs Styling - Pill Style like CasaOS Sidebar/Tabs */
+.nav-tabs {
+    border-bottom: none;
+    margin-bottom: 2rem;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 50px; /* Pill shape container */
+    display: inline-flex;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+    /* Improve alignment */
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.nav-tabs .nav-item {
+    margin: 0;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-secondary);
+    border: none;
+    border-radius: 30px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background: transparent;
+}
+
+.nav-tabs .nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-tabs .nav-link.active {
+    background: var(--accent-color);
+    color: white;
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+}
+
+/* Stat Cards Specifics */
 .stat-card {
-    transition: transform 0.2s;
-    height: 100%; /* Force equal height in flex container */
     display: flex;
     flex-direction: column;
     justify-content: center;
-    min-height: 140px; /* Ensure enough height to match RAM card */
+    align-items: center;
+    height: 100%;
+    min-height: 160px;
 }
+
 .stat-label {
-    color: #a0a0a0;
     font-size: 0.9rem;
-    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
 }
+
 .stat-value {
-    font-size: 2rem;
-    font-weight: bold;
-    margin: 10px 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: white;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
+
 .stat-detail {
-    font-size: 0.85rem;
-    color: #888;
-    min-height: 20px; /* Reserve space for detail text to keep alignment */
-    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary); 
 }
-.stat-card:hover {
-    transform: translateY(-5px);
-    border-color: #666;
+
+/* Progress Bars */
+.progress {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
 }
+
+/* Buttons */
+.btn {
+    border-radius: 12px;
+    transition: all 0.2s;
+    font-weight: 600;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border: none;
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    border: none;
+}
+
+/* Tables and Lists */
+.table {
+    color: var(--text-primary);
+    background: transparent;
+}
+.table thead th {
+    border-bottom: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    background: transparent;
+}
+.table td {
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.list-group-item {
+    background: rgba(0, 0, 0, 0.2) !important; 
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: white !important;
+    margin-bottom: 5px;
+    border-radius: 12px !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.tab-pane {
+    animation: fadeIn 0.4s ease-out;
+}
+
 .blink-anim {
     animation: blinker 1s linear infinite;
 }
+
 @keyframes blinker {
-    50% { opacity: 0; }
+    50% { opacity: 0.5; }
 }
-/* Gauge Chart Layout */
-#speedChart {
-    max-height: 150px;
-}
-.fan-slider-container {
-    padding: 20px;
-}
-.docker-status-running {
-    color: #28a745;
-    font-weight: bold;
-}
-.docker-status-exited {
-    color: #dc3545;
+
+/* Utility to center the nav */
+#myTab {
+    justify-content: center;
 }
