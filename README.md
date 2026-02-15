@@ -16,7 +16,7 @@ A sleek, modern, and comprehensive web dashboard designed specifically for Raspb
 ## ✨ Key Features
 
 ### 🤖 AI-Powered Diagnostics
-- **System Doctor:** One-click diagnostics using **Gemini 2.0 Flash AI**. It reads real-time OS logs (`journalctl`), detects hidden errors, identifies security threats, and provides actionable summaries in plain text.
+- **System Doctor:** One-click diagnostics using **Gemini 2.5 Flash AI**. It reads real-time OS logs (`journalctl`), detects hidden errors, identifies security threats, and provides actionable summaries in plain text.
 
 ### 📊 Comprehensive Monitoring
 - **Real-time Stats:** Live monitoring for CPU usage, RAM allocation, Core Temperature, and Disk I/O.
