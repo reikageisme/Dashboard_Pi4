@@ -40,6 +40,32 @@ const statsChart = new Chart(ctx, {
     }
 });
 
+// Pi-hole Chart
+let phChartCtx = document.getElementById('piholeChart');
+let phChart = null;
+
+if(phChartCtx) {
+    phChart = new Chart(phChartCtx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Blocked', 'Allowed'],
+            datasets: [{
+                data: [0, 100],
+                backgroundColor: ['#dc3545', '#198754'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+             plugins: {
+                legend: { position: 'bottom', labels: { color: '#fff' } }
+            }
+        }
+    });
+}
+
+
 // Speed Gauge
 const speedCtx = document.getElementById('speedChart').getContext('2d');
 const speedChart = new Chart(speedCtx, {
@@ -198,6 +224,12 @@ function updateStats() {
                  document.getElementById('net-rx').textContent = formatBytes(data.net_rx) + '/s';
             }
 
+            // Disk I/O
+            if(document.getElementById('disk-read-val')) {
+                document.getElementById('disk-read-val').textContent = formatBytes(data.disk_read || 0) + '/s';
+                document.getElementById('disk-write-val').textContent = formatBytes(data.disk_write || 0) + '/s';
+            }
+
             // Top Processes
             if(data.top_procs) {
                 fullProcList = data.top_procs;
@@ -254,6 +286,156 @@ function updateStats() {
         });
 }
 
+// --- New Features Logic ---
+
+// 1. Storage
+function updateStorage() {
+    fetch('/api/storage')
+    .then(r => r.json())
+    .then(data => {
+        const list = document.getElementById('disk-list');
+        list.innerHTML = data.map(d => `
+            <div class="col-md-6 mb-3">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-bold"><i class="fa-solid fa-hard-drive"></i> ${d.device}</span>
+                        <small class="text-muted">${d.fstype}</small>
+                    </div>
+                    <small>${d.mountpoint}</small>
+                    <div class="progress my-2 bg-secondary" style="height: 15px;">
+                        <div class="progress-bar ${getDiskColor(d.percent)}" style="width: ${d.percent}%">${d.percent}%</div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted">
+                        <span>Used: ${d.used} GB</span>
+                        <span>Total: ${d.total} GB</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    });
+}
+
+function getDiskColor(p) {
+    if(p < 70) return 'bg-success';
+    if(p < 90) return 'bg-warning';
+    return 'bg-danger';
+}
+
+// 2. Network & Tunnels
+function updateNetwork() {
+    // Tunnels
+    fetch('/api/network/tunnels')
+    .then(r => r.json())
+    .then(data => {
+        const list = document.getElementById('tunnels-list');
+        list.innerHTML = data.map(t => `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                <div>
+                    <i class="fa-solid fa-cloud"></i> ${t.name}
+                    <div class="small text-muted">${t.service}</div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                     <span class="badge ${t.status === 'active' ? 'bg-success' : 'bg-danger'}">${t.status}</span>
+                     ${t.status === 'active' ? 
+                         `<button class="btn btn-sm btn-outline-danger" onclick="controlTunnel('${t.service}', 'stop')">Stop</button>` :
+                         `<button class="btn btn-sm btn-outline-success" onclick="controlTunnel('${t.service}', 'start')">Start</button>`
+                     }
+                     <button class="btn btn-sm btn-outline-secondary" onclick="controlTunnel('${t.service}', 'restart')"><i class="fa-solid fa-rotate"></i></button>
+                </div>
+            </div>
+        `).join('');
+    });
+
+    // Ports
+    fetch('/api/network/ports')
+    .then(r => r.json())
+    .then(data => {
+        const list = document.getElementById('ports-list');
+        list.innerHTML = data.map(p => `
+            <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                <span><span class="badge bg-secondary">${p.proto}</span> ${p.port}</span>
+                <span class="text-muted small">${p.address}</span>
+            </li>
+        `).join('');
+    });
+}
+
+function controlTunnel(service, action) {
+    showConfirmModal('Control Tunnel', `${action.toUpperCase()} ${service}?`, () => {
+        fetch('/api/network/tunnel/control', {
+             method: 'POST', 
+             headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({service, action})
+        })
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                showToast('Tunnel', `${action} command sent.`);
+                setTimeout(updateNetwork, 1000); // Wait for systemd
+            } else {
+                showToast('Error', d.error);
+            }
+        });
+    });
+}
+
+// 3. Pi-hole
+function updatePihole() {
+    fetch('/api/pihole/summary')
+    .then(r => r.json())
+    .then(data => {
+        if(data.error) {
+            // handle error state visually
+            return;
+        }
+        
+        // Update Chart
+        if(phChart) {
+            // Assuming data.ads_blocked_today and data.dns_queries_today
+             const blocked = parseInt(data.ads_blocked_today) || 0;
+             const total = parseInt(data.dns_queries_today) || 0;
+             const allowed = total - blocked;
+             
+             phChart.data.datasets[0].data = [blocked, allowed];
+             phChart.update();
+        }
+
+        // Update Text
+        document.getElementById('ph-queries').textContent = data.dns_queries_today;
+        document.getElementById('ph-blocked').textContent = data.ads_blocked_today;
+        document.getElementById('ph-percent').textContent = data.ads_percentage_today + '%';
+
+    })
+    .catch(() => {});
+}
+
+function disablePihole(duration) {
+    fetch('/api/pihole/disable', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({duration})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.status) showToast('Pi-hole', `Status: ${d.status}`);
+        else showToast('Pi-hole', 'Command sent (could not parse response)');
+    });
+}
+
+// 4. App Store
+function installApp(appName) {
+    showConfirmModal('Install App', `Are you sure you want to install ${appName}? This will run 'docker-compose up'.`, () => {
+        fetch('/api/appstore/install', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({app_name: appName})
+        })
+        .then(r=>r.json())
+        .then(d => showToast('App Store', d.message));
+    });
+}
+
+// --- Helper: Custom Confirm Modal ---
 function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 B';
     const k = 1024;
@@ -546,6 +728,12 @@ tabEls.forEach(tabEl => {
             updateStats();
         } else if (id === 'term-tab') {
             loadLogs(); // Fetch logs immediately
+        } else if (id === 'pihole-tab') {
+             updatePihole();
+        } else if (id === 'network-tab') {
+             updateNetwork();
+        } else if (id === 'storage-tab') {
+             updateStorage();
         }
     });
 });

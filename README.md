@@ -13,7 +13,11 @@ A sleek, lightweight, and comprehensive web dashboard for monitoring and managin
 - 🐳 **Docker Management:** View, Start, Stop, Restart, and Remove containers directly from the UI.
 - 🌪️ **Smart Fan Control:** PWM fan control via GPIO (Default Pin 18) with Auto, Manual, Max, and Off modes.
 - ⚡ **Network Speedtest:** Integrated 1-click speed test to check your Pi's bandwidth.
-- 🖥️ **System Terminal Log:** View real-time OS events (`journalctl`) straight from the browser.
+- �️ **Pi-hole Integration:** Monitor stats and disable ad-blocking directly from dashboard.
+- 📦 **App Store:** One-click deployment for popular self-hosted apps (Docker).
+- 💾 **Storage Manager:** View disk usage and live I/O speed.
+- 🌐 **Network Tunnel:** Manage Cloudflare Tunnels and view open ports.
+- �🖥️ **System Terminal Log:** View real-time OS events (`journalctl`) straight from the browser.
 - 🛠️ **Tech Stack:** Python (Flask) backend + Bootstrap 5 & Chart.js frontend.
 
 ---
@@ -31,7 +35,7 @@ sudo apt install -y git python3-pip python3-flask python3-psutil python3-docker 
 **2. Clone the repository:**
 
 ```bash
-git clone [https://github.com/reikageisme/Dashboard_Pi4.git](https://github.com/reikageisme/Dashboard_Pi4.git)
+git clone https://github.com/reikageisme/Dashboard_Pi4.git
 cd Dashboard_Pi4
 
 ```
@@ -93,7 +97,7 @@ sudo systemctl start pi_dashboard.service
 **1. Clone the repository & enter directory:**
 
 ```bash
-git clone [https://github.com/reikageisme/Dashboard_Pi4.git](https://github.com/reikageisme/Dashboard_Pi4.git)
+git clone https://github.com/reikageisme/Dashboard_Pi4.git
 cd Dashboard_Pi4
 
 ```

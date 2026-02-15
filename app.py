@@ -5,6 +5,7 @@ import psutil
 import docker
 import speedtest
 import subprocess
+import requests
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from datetime import datetime
 from functools import wraps
@@ -69,6 +70,7 @@ FAN_MODE = 'manual'
 SPEEDTEST_RESULT = {"ping": 0, "download": 0, "upload": 0, "timestamp": None}
 SPEEDTEST_RUNNING = False
 LAST_NET_IO = {"bytes_sent": 0, "bytes_recv": 0, "time": 0}
+LAST_DISK_IO = {"read_bytes": 0, "write_bytes": 0, "time": 0}
 
 # --- Hardware / GPIO Helper ---
 class FanController:
@@ -181,6 +183,26 @@ def get_stats():
         "time": cur_time
     }
 
+    # Disk I/O (Read/Write Speed)
+    try:
+        disk_io = psutil.disk_io_counters()
+        read_speed = 0
+        write_speed = 0
+        
+        if time_delta > 0 and LAST_DISK_IO["time"] != 0:
+            read_speed = (disk_io.read_bytes - LAST_DISK_IO["read_bytes"]) / time_delta
+            write_speed = (disk_io.write_bytes - LAST_DISK_IO["write_bytes"]) / time_delta
+        
+        LAST_DISK_IO = {
+            "read_bytes": disk_io.read_bytes,
+            "write_bytes": disk_io.write_bytes,
+            "time": cur_time
+        }
+    except Exception as e:
+        read_speed = 0
+        write_speed = 0
+        print(f"Disk I/O Error: {e}")
+
     # Top Processes (by CPU)
     # Get top 5 sorted by cpu_percent
     top_procs = []
@@ -234,6 +256,8 @@ def get_stats():
         "fan_mode": FAN_MODE,
         "net_tx": tx_speed, # Bytes/s
         "net_rx": rx_speed, # Bytes/s
+        "disk_read": read_speed,
+        "disk_write": write_speed,
         "top_procs": top_procs
     })
 
@@ -299,6 +323,7 @@ def get_real_docker_stats():
                             # So mark it as needing fallback
                             stats_dict[name] = {'cpu': cpu, 'mem': 'BATCH_FALLBACK'} 
                         except:
+<<<<<<< HEAD
                             stats_dict[name] = {'cpu': cpu, 'mem': mem_used}
                     else:
                         stats_dict[name] = {
@@ -310,6 +335,150 @@ def get_real_docker_stats():
         print(f"Error getting docker stats: {e}")
         return {}
         
+=======
+                            pass
+                    else:
+                        stats_dict[name] = {'cpu': cpu, 'mem': mem_used}
+    except Exception as e:
+        print(f"Docker stats error: {e}")
+    return stats_dict
+
+# --- New Features APIs ---
+
+# 1. Start/Stop Cloudflare Tunnel & List Ports
+@app.route('/api/network/tunnels')
+@login_required
+def get_tunnels():
+    tunnels = [
+        {"name": "cloudflared-tanh", "service": "cloudflared-tanh.service", "status": "unknown"},
+        {"name": "cloudflared-aceda", "service": "cloudflared-aceda.service", "status": "unknown"}
+    ]
+    for t in tunnels:
+        try:
+            status = subprocess.check_output(['systemctl', 'is-active', t['service']], text=True).strip()
+            t['status'] = 'active' if status == 'active' else 'inactive'
+        except subprocess.CalledProcessError:
+            t['status'] = 'inactive'
+        except FileNotFoundError:
+             # systemctl not found (e.g. in container)
+             t['status'] = 'unknown'
+
+    return jsonify(tunnels)
+
+@app.route('/api/network/tunnel/control', methods=['POST'])
+@login_required
+def control_tunnel():
+    data = request.json
+    service = data.get('service')
+    action = data.get('action') # start, stop, restart
+    
+    if action not in ['start', 'stop', 'restart']:
+        return jsonify({"success": False, "error": "Invalid action"})
+    
+    # Security check: only allow specific services
+    if service not in ['cloudflared-tanh.service', 'cloudflared-aceda.service']:
+        return jsonify({"success": False, "error": "Service not allowed"})
+
+    cmd_prefix = []
+    if os.geteuid() != 0:
+        cmd_prefix = ['sudo']
+
+    try:
+        subprocess.run(cmd_prefix + ['systemctl', action, service], check=True)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/network/ports')
+@login_required
+def get_open_ports():
+    ports = []
+    try:
+        # Use netstat or ss to get listening ports
+        # Output format: tcp 0 0 0.0.0.0:22 ...
+        key = "Listening" 
+        # ss -tuln
+        output = subprocess.check_output(['ss', '-tuln'], text=True)
+        # Parse output
+        lines = output.splitlines()[1:] # Skip header
+        for line in lines:
+            parts = line.split()
+            if len(parts) >= 5:
+                # State Recv-Q Send-Q Local Address:Port Peer Address:Port
+                # LISTEN 0 128 *:80 *:*
+                proto = parts[0] # u_str
+                local_addr = parts[4]
+                if ':' in local_addr:
+                    port = local_addr.split(':')[-1]
+                    ports.append({"proto": "TCP/UDP", "port": port, "address": local_addr})
+    except Exception as e:
+        print(f"Error getting ports: {e}")
+    return jsonify(list({v['port']:v for v in ports}.values())) # Unique ports
+
+# 2. Storage
+@app.route('/api/storage')
+@login_required
+def get_storage():
+    parts = []
+    for part in psutil.disk_partitions():
+        if 'loop' in part.device: continue
+        try:
+            usage = psutil.disk_usage(part.mountpoint)
+            parts.append({
+                "device": part.device,
+                "mountpoint": part.mountpoint,
+                "fstype": part.fstype,
+                "total": round(usage.total / 1024**3, 2), # GB
+                "used": round(usage.used / 1024**3, 2),
+                "free": round(usage.free / 1024**3, 2),
+                "percent": usage.percent
+            })
+        except:
+             pass
+    
+    # Disk I/O (Read/Write Speed) needs state tracking similar to Network I/O
+    # We will reuse the global logic concept or add a new one.
+    # For now, let's keep it simple and just return usage. Real-time I/O requires rapid polling.
+    return jsonify(parts)
+
+# 3. Pi-hole Proxy
+@app.route('/api/pihole/summary')
+@login_required
+def pihole_summary():
+    # Assume Pi-hole is at localhost or configurable ENVAR
+    PIHOLE_URL = os.environ.get('PIHOLE_URL', 'http://localhost/admin/api.php?summary')
+    # Use requests to fetch
+    try:
+        resp = requests.get(PIHOLE_URL, timeout=3)
+        return jsonify(resp.json())
+    except Exception as e:
+        return jsonify({"error": "Cannot connect to Pi-hole"}), 502
+
+@app.route('/api/pihole/disable', methods=['POST'])
+@login_required
+def pihole_disable():
+    # Usually requires API Token &auth=TOKEN
+    PIHOLE_TOKEN = os.environ.get('PIHOLE_TOKEN', '')
+    PIHOLE_HOST = os.environ.get('PIHOLE_HOST', 'http://localhost')
+    duration = request.json.get('duration', 300) # 5 mins
+    
+    url = f"{PIHOLE_HOST}/admin/api.php?disable={duration}&auth={PIHOLE_TOKEN}"
+    try:
+        resp = requests.get(url, timeout=5)
+        return jsonify(resp.json())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 4. App Store (Simple implementation)
+@app.route('/api/appstore/install', methods=['POST'])
+@login_required
+def install_app():
+    app_name = request.json.get('app_name')
+    # Define map of app_name -> docker-compose content or file path
+    # For MVP, we'll just simulate success
+    return jsonify({"success": True, "message": f"Installing {app_name} (Simulation)"})
+
+>>>>>>> 76f6235 (Update: Add Pi-hole, App Store, Network & Storage tabs)
 def get_container_memory_usage(container):
     try:
         # Get PID of the container's main process

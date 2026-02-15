@@ -43,6 +43,18 @@
                 <button class="nav-link" id="docker-tab" data-bs-toggle="tab" data-bs-target="#docker-pane" type="button">🐳 Docker</button>
             </li>
             <li class="nav-item">
+                <button class="nav-link" id="pihole-tab" data-bs-toggle="tab" data-bs-target="#pihole-pane" type="button">🛡️ Pi-hole</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="network-tab" data-bs-toggle="tab" data-bs-target="#network-pane" type="button">🌐 Network</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage-pane" type="button">💾 Storage</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="appstore-tab" data-bs-toggle="tab" data-bs-target="#appstore-pane" type="button">📦 Store</button>
+            </li>
+            <li class="nav-item">
                 <button class="nav-link" id="term-tab" data-bs-toggle="tab" data-bs-target="#term-pane" type="button">💻 Terminal</button>
             </li>
         </ul>
@@ -162,6 +174,7 @@
 
             <!-- DOCKER TAB -->
             <div class="tab-pane fade" id="docker-pane" role="tabpanel">
+
                 <div class="row">
                     <!-- Containers List -->
                     <div class="col-md-8">
@@ -218,6 +231,127 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PI-HOLE TAB -->
+            <div class="tab-pane fade" id="pihole-pane" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card p-3 h-100">
+                             <h5><i class="fa-solid fa-chart-pie"></i> Pi-hole Stats</h5>
+                             <div class="d-flex justify-content-center align-items-center" style="height: 300px;">
+                                <canvas id="piholeChart"></canvas>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card p-3 mb-3 text-center">
+                            <h5><i class="fa-solid fa-shield-halved"></i> Control</h5>
+                            <button class="btn btn-warning w-100 my-3" onclick="disablePihole(300)">Disable (5m)</button>
+                            <button class="btn btn-danger w-100" onclick="disablePihole(0)">Enable</button>
+                        </div>
+                        <div class="card p-3">
+                             <h6>Summary</h6>
+                             <ul class="list-group list-group-flush">
+                                <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                                    <span>Total Queries</span>
+                                    <span id="ph-queries">0</span>
+                                </li>
+                                <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                                    <span>Ads Blocked</span>
+                                    <span id="ph-blocked" class="text-danger">0</span>
+                                </li>
+                                <li class="list-group-item bg-dark text-white d-flex justify-content-between">
+                                    <span>Percentage</span>
+                                    <span id="ph-percent">0%</span>
+                                </li>
+                             </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NETWORK TAB -->
+            <div class="tab-pane fade" id="network-pane" role="tabpanel">
+                 <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card p-3 h-100">
+                            <h5><i class="fa-solid fa-server"></i> Cloudflare Tunnels</h5>
+                            <div id="tunnels-list" class="mt-3">
+                                <!-- JS Populated -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                         <div class="card p-3 h-100">
+                            <h5><i class="fa-solid fa-ethernet"></i> Open Ports</h5>
+                            <ul class="list-group list-group-flush mt-3" id="ports-list">
+                                <!-- JS Populated -->
+                            </ul>
+                        </div>
+                    </div>
+                 </div>
+            </div>
+
+            <!-- STORAGE TAB -->
+            <div class="tab-pane fade" id="storage-pane" role="tabpanel">
+                <div class="card p-3 mb-3">
+                     <div class="d-flex justify-content-between align-items-center mb-3">
+                         <h5><i class="fa-solid fa-hard-drive"></i> Disk Activity (Live)</h5>
+                         <div class="d-flex gap-4">
+                            <div class="text-success"><small>READ:</small> <span id="disk-read-val">0 B/s</span></div>
+                            <div class="text-info"><small>WRITE:</small> <span id="disk-write-val">0 B/s</span></div>
+                         </div>
+                     </div>
+                </div>
+
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                         <h5><i class="fa-solid fa-hard-drive"></i> Disk Usage</h5>
+                         <button class="btn btn-sm btn-outline-secondary" onclick="updateStorage()">Refresh</button>
+                    </div>
+                    <div id="disk-list" class="row">
+                        <!-- JS injected cards -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- APP STORE TAB -->
+            <div class="tab-pane fade" id="appstore-pane" role="tabpanel">
+                <div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Simple Docker-Compose Installer (Mockup)</div>
+                <div class="row">
+                    <!-- Apps List -->
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                             <div class="card-body text-center">
+                                <i class="fa-solid fa-film fa-3x text-primary mb-3"></i>
+                                <h5 class="card-title">Jellyfin</h5>
+                                <p class="card-text text-muted">The Free Software Media System.</p>
+                                <button class="btn btn-success" onclick="installApp('jellyfin')">Install</button>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                             <div class="card-body text-center">
+                                <i class="fa-solid fa-cloud fa-3x text-info mb-3"></i>
+                                <h5 class="card-title">Nextcloud</h5>
+                                <p class="card-text text-muted">A safe home for all your data.</p>
+                                <button class="btn btn-success" onclick="installApp('nextcloud')">Install</button>
+                             </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card h-100">
+                             <div class="card-body text-center">
+                                <i class="fa-solid fa-heart-pulse fa-3x text-success mb-3"></i>
+                                <h5 class="card-title">Uptime Kuma</h5>
+                                <p class="card-text text-muted">Self-hosted monitoring tool.</p>
+                                <button class="btn btn-success" onclick="installApp('kuma')">Install</button>
+                             </div>
                         </div>
                     </div>
                 </div>

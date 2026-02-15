@@ -13,4 +13,3 @@ services:
       - ADMIN_PASS=admin
       - TZ=Asia/Ho_Chi_Minh
     restart: unless-stopped
-
