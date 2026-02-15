@@ -804,8 +804,6 @@ def run_speedtest():
     return jsonify({"status": "started"})
 
 if __name__ == '__main__':
-    # XÓA (hoặc comment) dòng cũ: app.run(host='0.0.0.0', port=5000, debug=True)
-    
-    # THAY BẰNG DÒNG MỚI:
+
     print("🚀 Bật server Production (Waitress) tại cổng 5000...")
     serve(app, host='0.0.0.0', port=5000)
