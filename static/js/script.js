@@ -174,10 +174,10 @@ function renderProcTable() {
     if(procBody) {
         procBody.innerHTML = pageData.map(p => `
             <tr>
-                <td><small>${p.pid}</small></td>
-                <td>${p.name}</td>
+                <td><small style="color: #abc;">${p.pid}</small></td>
+                <td style="color: #fff;">${p.name}</td>
                 <td class="text-warning">${p.cpu}%</td>
-                <td>${p.mem} MB</td>
+                <td style="color: #ccc;">${p.mem} MB</td>
             </tr>
         `).join('');
     }
@@ -566,8 +566,8 @@ function updateImages() {
              data.forEach(img => {
                  const tr = document.createElement('tr');
                  tr.innerHTML = `
-                    <td class="text-truncate" style="max-width: 150px;" title="${img.tag}">${img.tag}</td>
-                    <td><small>${img.size} MB</small></td>
+                    <td class="text-truncate" style="max-width: 150px; color: #eee;" title="${img.tag}">${img.tag}</td>
+                    <td><small style="color: #ccc;">${img.size} MB</small></td>
                     <td class="text-end"><button class="btn btn-sm btn-link text-danger p-0" onclick="imageAction('remove', '${img.id}')"><i class="fa-solid fa-trash"></i></button></td>
                  `;
                  tbody.appendChild(tr);
