@@ -323,12 +323,17 @@ function getDiskColor(p) {
 
 // 2. Network & Tunnels
 function updateNetwork() {
+    console.log("updateNetwork called");
     // Tunnels
     fetch('/api/network/tunnels')
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) throw new Error("HTTP error " + r.status);
+        return r.json();
+    })
     .then(data => {
         const list = document.getElementById('tunnels-list');
-        list.innerHTML = data.map(t => `
+        if (list) {
+            list.innerHTML = data.map(t => `
             <div class="d-flex justify-content-between align-items-center border-bottom py-2">
                 <div>
                     <i class="fa-solid fa-cloud"></i> ${t.name}
@@ -343,21 +348,29 @@ function updateNetwork() {
                      <button class="btn btn-sm btn-outline-secondary" onclick="controlTunnel('${t.service}', 'restart')"><i class="fa-solid fa-rotate"></i></button>
                 </div>
             </div>
-        `).join('');
-    });
+            `).join('');
+        }
+    })
+    .catch(e => console.error("Tunnel error:", e));
 
     // Ports
     fetch('/api/network/ports')
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) throw new Error("HTTP error " + r.status);
+        return r.json();
+    })
     .then(data => {
         const list = document.getElementById('ports-list');
-        list.innerHTML = data.map(p => `
+        if (list) {
+            list.innerHTML = data.map(p => `
             <li class="list-group-item bg-dark text-white d-flex justify-content-between">
                 <span><span class="badge bg-secondary">${p.proto}</span> ${p.port}</span>
                 <span class="text-muted small">${p.address}</span>
             </li>
-        `).join('');
-    });
+            `).join('');
+        }
+    })
+    .catch(e => console.error("Ports error:", e));
 }
 
 function controlTunnel(service, action) {
@@ -742,6 +755,15 @@ tabEls.forEach(tabEl => {
 setInterval(updateStats, 1000); // 1s interval
 setInterval(updateDocker, 3000);
 setInterval(loadLogs, 5000);
+
+// Add intervals for new tabs to handle auto-refresh
+setInterval(() => {
+    const activeId = document.querySelector('.nav-link.active')?.id;
+    if (activeId === 'pihole-tab') updatePihole();
+    else if (activeId === 'network-tab') updateNetwork();
+    else if (activeId === 'storage-tab') updateStorage();
+}, 5000);
+
 updateStats();
 updateDocker();
 checkSpeedtest();
