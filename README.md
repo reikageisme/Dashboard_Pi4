@@ -1,4 +1,3 @@
-```markdown
 # 🍓 Raspberry Pi Dashboard
 ![Version](https://img.shields.io/badge/version-1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.x-blue.svg)
