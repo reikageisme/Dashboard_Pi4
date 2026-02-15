@@ -146,6 +146,7 @@ fan_thread.start()
 @login_required
 def get_stats():
     global LAST_NET_IO
+    global LAST_DISK_IO
     
     # CPU
     cpu_percent = psutil.cpu_percent(interval=None)
@@ -336,19 +337,50 @@ def get_real_docker_stats():
 @app.route('/api/network/tunnels')
 @login_required
 def get_tunnels():
-    tunnels = [
-        {"name": "cloudflared-tanh", "service": "cloudflared-tanh.service", "status": "unknown"},
-        {"name": "cloudflared-aceda", "service": "cloudflared-aceda.service", "status": "unknown"}
-    ]
-    for t in tunnels:
-        try:
-            status = subprocess.check_output(['systemctl', 'is-active', t['service']], text=True).strip()
-            t['status'] = 'active' if status == 'active' else 'inactive'
-        except subprocess.CalledProcessError:
-            t['status'] = 'inactive'
-        except FileNotFoundError:
-             # systemctl not found (e.g. in container)
-             t['status'] = 'unknown'
+    tunnels = []
+    # 1. Search for any cloudflared service
+    try:
+        # List all units matching cloudflared*
+        # systemctl list-units --all --no-pager --plain --no-legend 'cloudflared*'
+        cmd = ['systemctl', 'list-units', '--all', '--no-pager', '--plain', '--no-legend', 'cloudflared*']
+        if os.geteuid() != 0:
+            cmd = ['sudo'] + cmd
+            
+        output = subprocess.check_output(cmd, text=True)
+        # Output format: unit_name loaded active running description...
+        for line in output.splitlines():
+            parts = line.split()
+            if parts:
+                service_name = parts[0]
+                status = parts[3] # running, exited, failed
+                # Get a cleaner name
+                name = service_name.replace('.service', '').replace('cloudflared-', '').title()
+                tunnels.append({
+                    "name": name, 
+                    "service": service_name, 
+                    "status": 'active' if status == 'running' else 'inactive'
+                })
+    except Exception as e:
+        print(f"Error listing tunnels: {e}")
+        # Fallback to hardcoded list if search fails (e.g. no permission)
+        pass
+
+    if not tunnels:
+        # Fallback check for common names if list command failed or returned nothing but services exist hidden
+        fallback_list = ["cloudflared", "cloudflared-tanh", "cloudflared-aceda"]
+        for svc in fallback_list:
+            full_svc = f"{svc}.service"
+            try:
+                subprocess.check_output(['systemctl', 'status', full_svc], stderr=subprocess.DEVNULL)
+                # If status command succeeds, it exists
+                is_active = subprocess.call(['systemctl', 'is-active', '--quiet', full_svc]) == 0
+                tunnels.append({
+                    "name": svc.replace('cloudflared-', '').title(),
+                    "service": full_svc,
+                    "status": "active" if is_active else "inactive"
+                })
+            except:
+                pass
 
     return jsonify(tunnels)
 
@@ -362,9 +394,9 @@ def control_tunnel():
     if action not in ['start', 'stop', 'restart']:
         return jsonify({"success": False, "error": "Invalid action"})
     
-    # Security check: only allow specific services
-    if service not in ['cloudflared-tanh.service', 'cloudflared-aceda.service']:
-        return jsonify({"success": False, "error": "Service not allowed"})
+    # Security check: ensure it is a cloudflared service
+    if 'cloudflared' not in service or '..' in service or '/' in service:
+         return jsonify({"success": False, "error": "Service not allowed"})
 
     cmd_prefix = []
     if os.geteuid() != 0:
@@ -382,10 +414,20 @@ def get_open_ports():
     ports = []
     try:
         # Use netstat or ss to get listening ports
-        # Output format: tcp 0 0 0.0.0.0:22 ...
-        key = "Listening" 
         # ss -tuln
-        output = subprocess.check_output(['ss', '-tuln'], text=True)
+        cmd = ['ss', '-tuln']
+        # If run as non-root, ss might show less info, mainly owned processes.
+        # But for list of ports it usually works. 
+        # If fails, try sudo
+        try:
+            output = subprocess.check_output(cmd, text=True)
+        except:
+             if os.geteuid() != 0:
+                 cmd = ['sudo', 'ss', '-tuln']
+                 output = subprocess.check_output(cmd, text=True)
+             else:
+                 raise
+
         # Parse output
         lines = output.splitlines()[1:] # Skip header
         for line in lines:
@@ -397,18 +439,23 @@ def get_open_ports():
                 local_addr = parts[4]
                 if ':' in local_addr:
                     port = local_addr.split(':')[-1]
-                    ports.append({"proto": "TCP/UDP", "port": port, "address": local_addr})
+                    ports.append({"proto": proto.upper(), "port": port, "address": local_addr}) # Fix proto case
     except Exception as e:
         print(f"Error getting ports: {e}")
-    return jsonify(list({v['port']:v for v in ports}.values())) # Unique ports
+    
+    unique_ports = list({v['port']:v for v in ports}.values())
+    return jsonify(sorted(unique_ports, key=lambda x: int(x['port']) if x['port'].isdigit() else 99999))
 
 # 2. Storage
 @app.route('/api/storage')
 @login_required
 def get_storage():
     parts = []
-    for part in psutil.disk_partitions():
-        if 'loop' in part.device: continue
+    seen_mounts = set()
+    
+    # Try getting all partitions including loops but filter wisely
+    for part in psutil.disk_partitions(all=False):
+        if 'loop' in part.device or part.mountpoint in seen_mounts: continue
         try:
             usage = psutil.disk_usage(part.mountpoint)
             parts.append({
@@ -420,26 +467,58 @@ def get_storage():
                 "free": round(usage.free / 1024**3, 2),
                 "percent": usage.percent
             })
+            seen_mounts.add(part.mountpoint)
         except:
              pass
     
-    # Disk I/O (Read/Write Speed) needs state tracking similar to Network I/O
-    # We will reuse the global logic concept or add a new one.
-    # For now, let's keep it simple and just return usage. Real-time I/O requires rapid polling.
+    # Ensure root / is present if missing (psutil bug in some containers)
+    if '/' not in seen_mounts:
+        try:
+            usage = psutil.disk_usage('/')
+            parts.insert(0, {
+                "device": "root",
+                "mountpoint": "/",
+                "fstype": "ext4/overlay",
+                "total": round(usage.total / 1024**3, 2),
+                "used": round(usage.used / 1024**3, 2),
+                "free": round(usage.free / 1024**3, 2),
+                "percent": usage.percent
+            })
+        except:
+            pass
+
     return jsonify(parts)
 
 # 3. Pi-hole Proxy
 @app.route('/api/pihole/summary')
 @login_required
 def pihole_summary():
-    # Assume Pi-hole is at localhost or configurable ENVAR
-    PIHOLE_URL = os.environ.get('PIHOLE_URL', 'http://localhost/admin/api.php?summary')
-    # Use requests to fetch
-    try:
-        resp = requests.get(PIHOLE_URL, timeout=3)
-        return jsonify(resp.json())
-    except Exception as e:
-        return jsonify({"error": "Cannot connect to Pi-hole"}), 502
+    # Attempt multiple likely locations if ENV not set
+    # 1. ENV, 2. Localhost, 3. Localhost:8080 (common alternative), 4. Docker Gateway (172.17.0.1)
+    
+    potential_urls = []
+    if os.environ.get('PIHOLE_URL'):
+        potential_urls.append(os.environ.get('PIHOLE_URL'))
+    
+    potential_urls.extend([
+        'http://localhost/admin/api.php?summary',
+        'http://127.0.0.1/admin/api.php?summary',
+        'http://localhost:8080/admin/api.php?summary', # Non-standard port
+        'http://pi.hole/admin/api.php?summary',
+        'http://172.17.0.1/admin/api.php?summary' # Docker Host IP
+    ])
+
+    error_logs = []
+    for url in potential_urls:
+        try:
+            resp = requests.get(url, timeout=2) # Fast timeout
+            if resp.status_code == 200:
+                return jsonify(resp.json())
+        except Exception as e:
+            error_logs.append(f"{url}: {str(e)}")
+            continue
+
+    return jsonify({"error": "Cannot connect to Pi-hole", "details": error_logs}), 502
 
 @app.route('/api/pihole/disable', methods=['POST'])
 @login_required
