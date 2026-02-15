@@ -8,6 +8,7 @@ import subprocess
 import requests
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from datetime import datetime
+from datetime import timedelta
 from functools import wraps
 
 try:
@@ -19,6 +20,7 @@ except ImportError:
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
+app.permanent_session_lifetime = timedelta(days=7)
 
 # Auth Decorator
 def login_required(f):
@@ -42,6 +44,7 @@ def login():
     ADMIN_PASS = os.environ.get('ADMIN_PASS', 'admin')
     
     if data.get('username') == ADMIN_USER and data.get('password') == ADMIN_PASS:
+        session.permanent = True
         session['logged_in'] = True
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid credentials"})
