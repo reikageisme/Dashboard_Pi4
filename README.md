@@ -11,7 +11,7 @@ A sleek, lightweight, and comprehensive web dashboard for monitoring and managin
 ## ✨ Features
 - 📊 **Real-time Monitoring:** Live stats for CPU, RAM, Disk usage, and Core Temperature.
 - 🐳 **Docker Management:** View, Start, Stop, Restart, and Remove containers directly from the UI.
-- 🌪️ **Smart Fan Control:** PWM fan control via GPIO (Default Pin 18) with Auto, Max, and Off modes.
+- 🌪️ **Smart Fan Control:** PWM fan control via GPIO (Default Pin 18) with Auto, Manual, Max, and Off modes.
 - ⚡ **Network Speedtest:** Integrated 1-click speed test to check your Pi's bandwidth.
 - 🖥️ **System Terminal Log:** View real-time OS events (`journalctl`) straight from the browser.
 - 🛠️ **Tech Stack:** Python (Flask) backend + Bootstrap 5 & Chart.js frontend.
