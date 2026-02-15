@@ -17,7 +17,7 @@ except ImportError:
     print("lgpio not found, running in simulation mode for Fan Control")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'yoursecret_key')
+app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
 
 # Auth Decorator
 def login_required(f):
@@ -37,7 +37,10 @@ def login():
         return redirect('/')
         
     data = request.json
-    if data.get('username') == 'admin' and data.get('password') == 'yourpassword':
+    ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
+    ADMIN_PASS = os.environ.get('ADMIN_PASS', 'admin')
+    
+    if data.get('username') == ADMIN_USER and data.get('password') == ADMIN_PASS:
         session['logged_in'] = True
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid credentials"})
