@@ -13,6 +13,8 @@ from functools import wraps
 # Thay thế thư viện cũ google.generativeai bằng google-genai mới
 from google import genai
 from google.genai import types
+from waitress import serve
+
 
 # Setup Gemini AI (New SDK)
 GEMINI_API_KEY = "AIzaSyAW4MVFXPbfIdkLSH8kqVgsWgFolc5AwEM"  # Replace if changed
@@ -340,7 +342,7 @@ def analyze_log():
         
         # Use gemini_client to avoid conflict with docker client
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-flash', # Model
             contents=prompt
         )
         
@@ -802,4 +804,8 @@ def run_speedtest():
     return jsonify({"status": "started"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # XÓA (hoặc comment) dòng cũ: app.run(host='0.0.0.0', port=5000, debug=True)
+    
+    # THAY BẰNG DÒNG MỚI:
+    print("🚀 Bật server Production (Waitress) tại cổng 5000...")
+    serve(app, host='0.0.0.0', port=5000)
