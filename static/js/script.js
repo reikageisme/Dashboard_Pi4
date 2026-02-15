@@ -769,3 +769,57 @@ updateDocker();
 checkSpeedtest();
 // loadLogs is called by interval and tab switch
 
+
+/* --- AI Log Analysis --- */
+function analyzeLogsAI() {
+    const modalEl = document.getElementById('aiAnalysisModal');
+    if (!modalEl) {
+        console.error("Modal not found!");
+        alert("Lỗi: Không tìm thấy cửa sổ AI!");
+        return;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const loading = document.getElementById('ai-loading');
+    const result = document.getElementById('ai-result');
+
+    // Reset UI
+    if (loading) loading.classList.remove('d-none');
+    if (result) {
+        result.classList.add('d-none');
+        result.innerHTML = '';
+    }
+    
+    modal.show();
+
+    // Call API
+    fetch('/api/ai/analyze_log', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (loading) loading.classList.add('d-none');
+        if (result) result.classList.remove('d-none');
+        
+        if (data.success) {
+            // Render Markdown
+            if (typeof marked !== 'undefined' && marked.parse) {
+                result.innerHTML = marked.parse(data.analysis);
+            } else {
+                result.innerText = data.analysis;
+            }
+        } else {
+            result.innerHTML = '<div class="alert alert-danger">Lỗi AI: ' + (data.error || "Unknown Error") + '</div>';
+        }
+    })
+    .catch(err => {
+        if (loading) loading.classList.add('d-none');
+        if (result) {
+            result.classList.remove('d-none');
+            result.innerHTML = '<div class="alert alert-danger">Lỗi kết nối: ' + err + '</div>';
+        }
+    });
+}
