@@ -51,7 +51,7 @@
             const data = await res.json();
             
             if(data.success) {
-                window.location.reload();
+                window.location.href = '/';
             } else {
                 const alert = document.getElementById('alert');
                 alert.textContent = "Access Denied: " + data.error;
