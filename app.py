@@ -10,12 +10,13 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from datetime import datetime
 from datetime import timedelta
 from functools import wraps
-import google.generativeai as genai
+# Thay thế thư viện cũ google.generativeai bằng google-genai mới
+from google import genai
+from google.genai import types
 
-# Setup Gemini AI
+# Setup Gemini AI (New SDK)
 GEMINI_API_KEY = "AIzaSyAW4MVFXPbfIdkLSH8kqVgsWgFolc5AwEM"  # Replace if changed
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-pro') # Or gemini-pro if available
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 try:
     import lgpio
@@ -324,7 +325,6 @@ def analyze_log():
 
         # 2. Call Gemini
         # Model: gemini-2.0-flash-exp (Latest & Fastest)
-        model = genai.GenerativeModel('gemini-2.5-flash')
         
         prompt = f"""
         You are an expert DevOps Engineer. Analyze the following Linux system logs from a Raspberry Pi:
@@ -338,7 +338,10 @@ def analyze_log():
         Response Format: Markdown, English, Use Emojis.
         """
         
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=prompt
+        )
         
         return jsonify({'status': 'success', 'analysis': response.text})
 
