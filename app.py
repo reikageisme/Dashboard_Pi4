@@ -340,7 +340,7 @@ def analyze_log():
         
         # Use gemini_client to avoid conflict with docker client
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-pro',
+            model='gemini-2.5-flash',
             contents=prompt
         )
         
