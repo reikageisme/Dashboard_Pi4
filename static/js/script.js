@@ -769,6 +769,11 @@ updateDocker();
 checkSpeedtest();
 // loadLogs is called by interval and tab switch
 
+// Force Load Logs Function needed for manual refresh
+if (typeof window !== 'undefined') {
+    window.loadLogs = loadLogs;
+    window.analyzeLogsAI = analyzeLogsAI;
+}
 
 /* --- AI Log Analysis --- */
 function analyzeLogsAI() {
