@@ -6,3 +6,5 @@ speedtest-cli
 # but we will try to pip install it. If it fails, the code will handle it.
 # rpi-lgpio
 requests
+google-genai
+waitress

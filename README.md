@@ -1,162 +1,64 @@
-# 🍓 Raspberry Pi Dashboard
-![Version](https://img.shields.io/badge/version-1.0-blue.svg)
+# 🍓 Pi Dashboard
+![Version](https://img.shields.io/badge/version-2.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.x-blue.svg)
+![AI](https://img.shields.io/badge/AI-Gemini_2.0-orange.svg)
 ![Docker](https://img.shields.io/badge/docker-supported-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-A sleek, lightweight, and comprehensive web dashboard for monitoring and managing your Raspberry Pi HomeLab.
-
-<img width="1111" height="863" alt="image" src="https://github.com/user-attachments/assets/dccdfed7-95d8-4f25-93ef-516291d31de3" />
+A sleek, modern web dashboard for monitoring your Raspberry Pi/HomeLab. Powered by Python (Flask + Waitress) and Google Gemini AI.
 
 ## ✨ Features
-- 📊 **Real-time Monitoring:** Live stats for CPU, RAM, Disk usage, and Core Temperature.
-- 🐳 **Docker Management:** View, Start, Stop, Restart, and Remove containers directly from the UI.
-- 🌪️ **Smart Fan Control:** PWM fan control via GPIO (Default Pin 18) with Auto, Manual, Max, and Off modes.
-- ⚡ **Network Speedtest:** Integrated 1-click speed test to check your Pi's bandwidth.
-- �️ **Pi-hole Integration:** Monitor stats and disable ad-blocking directly from dashboard.
-- 📦 **App Store:** One-click deployment for popular self-hosted apps (Docker).
-- 💾 **Storage Manager:** View disk usage and live I/O speed.
-- 🌐 **Network Tunnel:** Manage Cloudflare Tunnels and view open ports.
-- �🖥️ **System Terminal Log:** View real-time OS events (`journalctl`) straight from the browser.
-- 🛠️ **Tech Stack:** Python (Flask) backend + Bootstrap 5 & Chart.js frontend.
+- 📊 **Real-time Monitoring:** Live CPU, RAM, Disk, Temp stats.
+- 🐳 **Docker Management:** Start/Stop/Restart containers & Pull images from Docker Hub.
+- 📉 **Top Processes:** View top 10 resource-hungry processes in real-time.
+- 🌪️ **Fan Control:** Smart PWM control (Auto/Manual/Max) via GPIO.
+- ⚡ **Speedtest:** Integrated network bandwidth test.
+- 🛡️ **Pi-hole:** View query stats & disable blocking temporarily.
+- 🌐 **Network Tunnel:** Manage Cloudflare Tunnels & View Open Ports.
+- 💾 **Storage Manager:** Visualize disk usage across partitions.
+- 🖥️ **Terminal:** View system logs (journalctl) in real-time.
+- 🤖 **AI System Doctor:** One-click diagnostics using **Gemini 2.0 Flash AI** to analyze logs and detect errors.
 
 ---
 
-## 🚀 Installation (Method 1: Direct on OS - Recommended)
-*Running directly on the OS (Bare-metal) is highly recommended for full hardware access, accurate Fan Control, and System Log reading.*
+## 🚀 Installation (Recommended: Direct on OS)
 
-**1. Install system dependencies:**
+**1. Install Dependencies:**
 ```bash
-sudo apt update
-sudo apt install -y git python3-pip python3-flask python3-psutil python3-docker python3-rpi-lgpio speedtest-cli
-
-```
-
-**2. Clone the repository:**
-
-```bash
+sudo apt update && sudo apt install -y git python3-pip
 git clone https://github.com/reikageisme/Dashboard_Pi4.git
 cd Dashboard_Pi4
-
+sudo pip3 install -r requirements.txt --break-system-packages
 ```
 
-**3. Run the application:**
+**2. Configure AI (Optional):**
+Get a free API Key from [Google AI Studio](https://aistudio.google.com/).
+Open `app.py` and paste your key into `GEMINI_API_KEY`.
 
+**3. Run:**
 ```bash
 sudo python3 app.py
-
 ```
+*Access at: http://<your-pi-ip>:5000*
 
-*Your dashboard is now live at `http://<your-pi-ip>:5000*`
-
-### 💡 Make it run forever (Systemd Service)
-
-To keep the dashboard running automatically after a reboot:
-
-```bash
-sudo nano /etc/systemd/system/pi_dashboard.service
-
-```
-
-Paste the following (adjust the path if needed):
-
+### 💡 Run as Service (Auto-Start)
+create `/etc/systemd/system/pi_dashboard.service`:
 ```ini
 [Unit]
-Description=Pi Web Dashboard
+Description=Pi Dashboard
 After=network.target docker.service
 
 [Service]
-Type=simple
+type=simple
 User=root
 WorkingDirectory=/home/your_user/Dashboard_Pi4
 ExecStart=/usr/bin/python3 /home/your_user/Dashboard_Pi4/app.py
 Restart=always
-RestartSec=5
-Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target
-
 ```
-
-Enable and start the service:
-
+Then enable:
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable pi_dashboard.service
-sudo systemctl start pi_dashboard.service
-
+sudo systemctl enable --now pi_dashboard.service
 ```
-
----
-
-## 🐳 Installation (Method 2: Docker)
-
-*If you prefer containerized isolation (Note: Fan control and full OS logs might be limited).*
-
-**1. Clone the repository & enter directory:**
-
-```bash
-git clone https://github.com/reikageisme/Dashboard_Pi4.git
-cd Dashboard_Pi4
-
-```
-
-**2. Build and run the container:**
-
-```bash
-docker compose up --build -d
-
-```
-
-*Open your browser and go to `http://<your-pi-ip>:5000`.*
-
----
-
-## ⚙️ Configuration
-
-* **Authentication:**
-    *   **Default Username:** `admin`
-    *   **Default Password:** `admin`
-    *   **Change Credentials:** Set the `ADMIN_USER` and `ADMIN_PASS` environment variables.
-    
-    *Example (Systemd):*
-    ```ini
-    Environment=ADMIN_USER=myuser
-    Environment=ADMIN_PASS=mypassword
-    Environment=SECRET_KEY=yoursecretkey
-    ```
-
-    *Example (Docker):*
-    Edit `docker-compose.yml`:
-    ```yaml
-    environment:
-      - ADMIN_USER=myuser
-      - ADMIN_PASS=mypassword
-      - SECRET_KEY=yoursecretkey
-    ```
-
-* **GPIO Pin:** Edited in `app.py` (Default is `18`).
-* **Timezone:** Ensure your Raspberry Pi has the correct timezone set so the charts display accurately:
-```bash
-sudo timedatectl set-timezone Asia/Ho_Chi_Minh
-
-```
-
-
-
-## ⚠️ Important Notes
-
-* **Fan Control:** If you lack the `python3-rpi-lgpio` package, the fan control will run in generic "simulation mode" (no error, but no hardware action will occur).
-* **Permissions:** If running without `sudo` (not recommended for hardware access), ensure your user is in the correct groups:
-```bash
-sudo usermod -aG gpio $USER
-sudo usermod -aG docker $USER
-
-```
-
-
-
-## 🤝 Contributing
-
-Feel free to fork this project, submit pull requests, or open issues to suggest new features!
