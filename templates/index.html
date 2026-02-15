@@ -30,6 +30,10 @@
             border: 1px solid rgba(255, 255, 255, 0.1) !important;
             color: white !important;
         }
+        /* Fix Table Visibility */
+        table { color: #f0f0f0 !important; }
+        th { color: #fff !important; }
+        .text-muted { color: #bbb !important; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -146,7 +150,7 @@
                             </div>
                             <table class="table table-sm table-borderless mb-0">
                                 <thead>
-                                    <tr class="text-muted">
+                                    <tr>
                                         <th>PID</th>
                                         <th>Name</th>
                                         <th>CPU</th>
@@ -242,7 +246,7 @@
                             </div>
                             <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                                 <table class="table table-sm table-borderless">
-                                    <thead class="text-muted">
+                                    <thead>
                                         <tr>
                                             <th>Tag</th>
                                             <th>Size</th>
