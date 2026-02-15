@@ -404,11 +404,11 @@
     </div>
 
     <!-- Notification Toast Container -->
-    <div class="toast-container position-fixed top-0 end-0 p-3">
-        <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header">
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 2000;">
+        <div id="liveToast" class="toast border-0" role="alert" aria-live="assertive" aria-atomic="true" style="background: rgba(40, 44, 52, 0.95); backdrop-filter: blur(10px); color: white;">
+            <div class="toast-header border-bottom border-secondary text-white" style="background: rgba(255, 255, 255, 0.1);">
                 <strong class="me-auto" id="toast-title">Notification</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
             <div class="toast-body" id="toast-body">
                 Hello, world! This is a toast message.
@@ -417,9 +417,9 @@
     </div>
 
     <!-- Confirmation Modal -->
-    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true" style="z-index: 1060;">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content text-bg-dark border-secondary">
+            <div class="modal-content border-secondary" style="background: rgba(30, 30, 40, 0.95); backdrop-filter: blur(15px); color: white;">
                 <div class="modal-header border-secondary">
                     <h5 class="modal-title" id="confirmModalTitle">Confirm Action</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -436,12 +436,12 @@
     </div>
 
     <!-- Logs Modal -->
-    <div class="modal fade" id="logsModal" tabindex="-1">
+    <div class="modal fade" id="logsModal" tabindex="-1" style="z-index: 1055;">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
+            <div class="modal-content border-secondary" style="background: rgba(30, 30, 40, 0.95); backdrop-filter: blur(15px); color: white;">
+                <div class="modal-header border-secondary">
                     <h5 class="modal-title" id="logsModalTitle">Logs</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body bg-black text-white" style="font-family: monospace;">
                     <pre id="logs-content" style="white-space: pre-wrap; font-size: 0.8rem;"></pre>
@@ -451,7 +451,7 @@
     </div>
 
     <!-- AI Analysis Modal -->
-    <div class="modal fade" id="aiAnalysisModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="aiAnalysisModal" tabindex="-1" aria-hidden="true" style="z-index: 1055;">
         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content glass-effect border-0" style="background: rgba(30, 30, 40, 0.95); backdrop-filter: blur(15px);">
                 <div class="modal-header border-bottom border-secondary">
