@@ -456,15 +456,14 @@ def set_fan():
     global FAN_MODE
     data = request.json
     
+    response_data = {"success": True}
+
     # Handle Mode Switch
     if 'mode' in data:
         mode = data.get('mode')
         if mode in ['auto', 'manual']:
             FAN_MODE = mode
-            if mode == 'auto':
-                 # Trigger immediate update in loop eventually, or rely on loop
-                 pass
-            return jsonify({"success": True, "mode": FAN_MODE})
+            response_data["mode"] = FAN_MODE
 
     # Handle Speed Set (Only if Manual)
     if 'speed' in data:
@@ -475,9 +474,11 @@ def set_fan():
             speed = int(data.get('speed', 0))
             if 0 <= speed <= 100:
                 fan_ctrl.set_speed(speed)
-                return jsonify({"success": True, "speed": speed})
+                response_data["speed"] = speed
         except Exception as e:
             return jsonify({"error": str(e)}), 500
+            
+    return jsonify(response_data)
             
     return jsonify({"error": "Invalid request"}), 400
 
