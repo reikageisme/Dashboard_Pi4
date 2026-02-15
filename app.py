@@ -16,7 +16,7 @@ from google.genai import types
 
 # Setup Gemini AI (New SDK)
 GEMINI_API_KEY = "AIzaSyAW4MVFXPbfIdkLSH8kqVgsWgFolc5AwEM"  # Replace if changed
-client = genai.Client(api_key=GEMINI_API_KEY)
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 try:
     import lgpio
@@ -335,11 +335,12 @@ def analyze_log():
         Logs:
         {final_log}
         
-        Response Format: Markdown, English, Use Emojis.
+        Response Format: Markdown, English, Use Emojis (No preamble).
         """
         
-        response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
+        # Use gemini_client to avoid conflict with docker client
+        response = gemini_client.models.generate_content(
+            model='gemini-2.5-pro',
             contents=prompt
         )
         
