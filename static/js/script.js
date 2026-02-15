@@ -532,7 +532,7 @@ function updateDocker() {
                 else if(c.status === 'exited') badgeClass = 'bg-danger';
 
                 tr.innerHTML = `
-                    <td><strong>${c.name}</strong><br><small style="color: #ccc;">${c.image}</small></td>
+                    <td><strong style="color: #fff;">${c.name}</strong><br><small style="color: #ccc;">${c.image}</small></td>
                     <td></td>
                     <td>
                         <small class="d-block text-warning"><i class="fa-solid fa-microchip"></i> ${c.cpu || '0%'}</small>
