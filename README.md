@@ -6,7 +6,7 @@
 
 A sleek, lightweight, and comprehensive web dashboard for monitoring and managing your Raspberry Pi HomeLab.
 
-![dashboard](image.png)
+<img width="1145" height="864" alt="Ảnh chụp màn hình 2026-02-15 185904" src="https://github.com/user-attachments/assets/c0fc7d7a-5c4c-406f-b1dd-91f9b12c336c" />
 
 ## ✨ Features
 - 📊 **Real-time Monitoring:** Live stats for CPU, RAM, Disk usage, and Core Temperature.
