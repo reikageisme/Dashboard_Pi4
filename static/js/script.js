@@ -68,7 +68,14 @@ let fanMode = 'manual';
 
 function setFanPreset(val) {
     if(fanMode === 'auto') {
-        alert("Switch to Manual mode to use presets!");
+        // Switch to Manual Mode first
+        setFanMode('manual');
+        // Small delay to allow mode switch to register visually
+        setTimeout(() => {
+            const slider = document.getElementById('fanRange');
+            slider.value = val;
+            slider.dispatchEvent(new Event('change'));
+        }, 50);
         return;
     }
     const slider = document.getElementById('fanRange');
@@ -77,25 +84,29 @@ function setFanPreset(val) {
 }
 
 function setFanMode(mode) {
+    // Optimistic UI Update
     if(mode === 'auto') {
-        showToast('Fan Mode', 'Switched to Auto Mode');
+        fanMode = 'auto';
+        showToast('Fan Mode', 'Switched to Auto Mode 🤖');
+        updateFanUI('auto');
     } else {
-        showToast('Fan Mode', 'Switched to Manual Mode');
+        fanMode = 'manual';
+        showToast('Fan Mode', 'Switched to Manual Mode 🛠️');
+        updateFanUI('manual');
     }
-    // If clicking Auto, switch to Auto. 
-    // If user interacts with slider/presets, they should imply manual switch or trigger error
+
+    // Send mode and current slider value as speed (for continuity when switching to manual)
+    const currentSpeed = parseInt(document.getElementById('fanRange').value) || 0;
+    
     fetch('/api/fan', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ mode: mode })
+        body: JSON.stringify({ mode: mode, speed: currentSpeed })
     })
-    .then(r => r.json())
-    .then(data => {
-        if(data.success) {
-            fanMode = data.mode;
-            updateFanUI(fanMode);
-        }
-    }); 
+    .catch(err => {
+        showToast('Error', 'Failed to change fan mode');
+        console.error(err);
+    });
 }
 
 function updateFanUI(mode) {
@@ -445,17 +456,29 @@ function dockerAction(id, action) {
 // Fan Control Slider
 const fanInput = document.getElementById('fanRange');
 fanInput.addEventListener('change', function() {
-    // If manually dragged, force manual mode
-    if(fanMode === 'auto') {
-        setFanMode('manual');
-    }
-    const speed = this.value;
+    const speed = parseInt(this.value);
     document.getElementById('fan-display').textContent = speed;
-    fetch('/api/fan', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ speed: parseInt(speed) })
-    });
+
+    // If manually dragged while in Auto, switch to Manual first (or simultaneously)
+    if(fanMode === 'auto') {
+        fanMode = 'manual'; // Optimistic update to prevent double firing
+        updateFanUI('manual');
+        showToast('Fan Mode', 'Switched to Manual Mode 🛠️');
+        
+        // Send both mode and speed
+        fetch('/api/fan', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mode: 'manual', speed: speed })
+        });
+    } else {
+        // Just send speed
+        fetch('/api/fan', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ speed: speed })
+        });
+    }
 });
 fanInput.addEventListener('input', function() {
     document.getElementById('fan-display').textContent = this.value;
