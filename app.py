@@ -10,6 +10,12 @@ from flask import Flask, render_template, jsonify, request, session, redirect, u
 from datetime import datetime
 from datetime import timedelta
 from functools import wraps
+import google.generativeai as genai
+
+# Setup Gemini AI
+GEMINI_API_KEY = "AIzaSyAW4MVFXPbfIdkLSH8kqVgsWgFolc5AwEM"  # Replace if changed
+genai.configure(api_key=GEMINI_API_KEY)
+model = genai.GenerativeModel('gemini-2.5-flash') # Or gemini-pro if available
 
 try:
     import lgpio
@@ -288,20 +294,71 @@ def system_power():
     return jsonify({"success": False, "error": "Invalid action"})
 
 @app.route('/api/system_log')
+@login_required
 def system_log():
     try:
-        # Lấy log gốc (có thể lấy 200 dòng để lọc cho thoải mái)
-        log_out = subprocess.check_output(['journalctl', '-n', '200', '--no-pager'], text=True, stderr=subprocess.STDOUT)
+        # Lấy LOG THÔ (nhiều hơn để có bối cảnh cho AI)
+        log_out = subprocess.check_output(['journalctl', '-n', '500', '--no-pager'], text=True, stderr=subprocess.STDOUT)
         
-        # LỌC RÁC: Bỏ qua những dòng chứa chữ "GET /api/"
+        # 1. TRẢ VỀ CHO GIAO DIỆN (Lọc bớt rác API)
         filtered_lines = [line for line in log_out.split('\n') if "GET /api/" not in line]
-        
-        # Ghép lại thành văn bản, chỉ lấy 100 dòng mới nhất sau khi đã lọc
         final_log = "\n".join(filtered_lines[-100:])
         
         return jsonify({'log': final_log})
     except Exception as e:
         return jsonify({'log': f"Lỗi đọc log: {str(e)}"})
+
+@app.route('/api/ai/analyze_log', methods=['POST'])
+@login_required
+def analyze_logs_ai():
+    try:
+        # 1. Lấy Full Log hệ thống (không lọc để AI thấy hết)
+        sys_logs = subprocess.check_output(['journalctl', '-n', '500', '--no-pager'], text=True, stderr=subprocess.STDOUT)
+        
+        # 2. Lấy thông tin Docker bị lỗi (nếu có)
+        docker_logs = ""
+        try:
+            # Lấy danh sách container bị sập
+            dead_containers = subprocess.check_output("docker ps -a --filter 'status=exited' --format '{{.Names}}'", shell=True, text=True).splitlines()
+            for c in dead_containers[:3]: # Chỉ lấy log 3 con chết gần nhất
+                try:
+                    logs = subprocess.check_output(['docker', 'logs', '--tail', '50', c], text=True, stderr=subprocess.STDOUT)
+                    docker_logs += f"\n--- Docker Container [{c}] Logs ---\n{logs}\n"
+                except:
+                    pass
+        except:
+            pass
+
+        # 3. Gom lại gửi cho AI
+        full_context = f"""
+        Timestamp: {datetime.now()}
+        System Logs (Last 500 lines):
+        {sys_logs}
+        
+        Docker Crashed Containers Logs:
+        {docker_logs}
+        """
+
+        prompt = f"""
+        Bạn là Admin Hệ thống Linux (SysAdmin AI) vui tính. Hãy phân tích đoạn log sau và thực hiện 3 mục:
+        1. 🕵️‍♂️ SECURITY: Có ai đang cố brute-force, scan port SSH/Web không? Nếu có, trích xuất IP.
+        2. 🚑 TROUBLESHOOT: Tại sao service lại crash (OOM, config sai, disk full)? Đưa ra lệnh sửa lỗi cụ thể.
+        3. 📝 SUMMARY: Tóm tắt 3 gạch đầu dòng về sức khỏe hệ thống hiện tại.
+
+        Context Log:
+        {full_context}
+        
+        Trả lời bằng Tiếng Việt, sử dụng Emoji, định dạng Markdown. Nếu log bình thường thì cứ khen hệ thống ngon.
+        """
+        
+        # Gọi Gemini
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = model.generate_content(prompt)
+        
+        return jsonify({"success": True, "analysis": response.text})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 def get_real_docker_stats():
     stats_dict = {}
