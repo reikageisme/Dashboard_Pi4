@@ -15,7 +15,7 @@ import google.generativeai as genai
 # Setup Gemini AI
 GEMINI_API_KEY = "AIzaSyAW4MVFXPbfIdkLSH8kqVgsWgFolc5AwEM"  # Replace if changed
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-2.5-flash') # Or gemini-pro if available
+model = genai.GenerativeModel('gemini-2.5-pro') # Or gemini-pro if available
 
 try:
     import lgpio
@@ -308,57 +308,44 @@ def system_log():
     except Exception as e:
         return jsonify({'log': f"Lỗi đọc log: {str(e)}"})
 
-@app.route('/api/ai/analyze_log', methods=['POST'])
+@app.route('/api/analyze_log', methods=['GET', 'POST'])
 @login_required
-def analyze_logs_ai():
+def analyze_log():
     try:
-        # 1. Lấy Full Log hệ thống (không lọc để AI thấy hết)
-        sys_logs = subprocess.check_output(['journalctl', '-n', '500', '--no-pager'], text=True, stderr=subprocess.STDOUT)
+        # 1. Get Log (Last 100 lines)
+        log_out = subprocess.check_output(['journalctl', '-n', '100', '--no-pager'], text=True, stderr=subprocess.STDOUT)
         
-        # 2. Lấy thông tin Docker bị lỗi (nếu có)
-        docker_logs = ""
-        try:
-            # Lấy danh sách container bị sập
-            dead_containers = subprocess.check_output("docker ps -a --filter 'status=exited' --format '{{.Names}}'", shell=True, text=True).splitlines()
-            for c in dead_containers[:3]: # Chỉ lấy log 3 con chết gần nhất
-                try:
-                    logs = subprocess.check_output(['docker', 'logs', '--tail', '50', c], text=True, stderr=subprocess.STDOUT)
-                    docker_logs += f"\n--- Docker Container [{c}] Logs ---\n{logs}\n"
-                except:
-                    pass
-        except:
-            pass
+        # Filter out "GET /api/" noise
+        filtered_lines = [line for line in log_out.split('\n') if "GET /api/" not in line]
+        final_log = "\n".join(filtered_lines[-50:])
+        
+        if not final_log.strip():
+             return jsonify({'status': 'success', 'analysis': 'No significant logs found recently.'})
 
-        # 3. Gom lại gửi cho AI
-        full_context = f"""
-        Timestamp: {datetime.now()}
-        System Logs (Last 500 lines):
-        {sys_logs}
-        
-        Docker Crashed Containers Logs:
-        {docker_logs}
-        """
-
-        prompt = f"""
-        Bạn là Admin Hệ thống Linux (SysAdmin AI) vui tính. Hãy phân tích đoạn log sau và thực hiện 3 mục:
-        1. 🕵️‍♂️ SECURITY: Có ai đang cố brute-force, scan port SSH/Web không? Nếu có, trích xuất IP.
-        2. 🚑 TROUBLESHOOT: Tại sao service lại crash (OOM, config sai, disk full)? Đưa ra lệnh sửa lỗi cụ thể.
-        3. 📝 SUMMARY: Tóm tắt 3 gạch đầu dòng về sức khỏe hệ thống hiện tại.
-
-        Context Log:
-        {full_context}
-        
-        Trả lời bằng Tiếng Việt, sử dụng Emoji, định dạng Markdown. Nếu log bình thường thì cứ khen hệ thống ngon.
-        """
-        
-        # Gọi Gemini
+        # 2. Call Gemini
+        # Model: gemini-1.5-flash (Fast & Efficient)
         model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""
+        You are an expert DevOps Engineer. Analyze the following Linux system logs from a Raspberry Pi:
+        1. Identify any ERRORS, WARNINGS, or Security Threats (e.g., SSH failures).
+        2. Summarize the system status in 3 short, clear bullet points.
+        3. Provide a recommendation if any issues are found.
+        
+        Logs:
+        {final_log}
+        
+        Response Format: Markdown, English, Use Emojis.
+        """
+        
         response = model.generate_content(prompt)
         
-        return jsonify({"success": True, "analysis": response.text})
+        return jsonify({'status': 'success', 'analysis': response.text})
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        print(f"AI Error: {e}") # Print to service logs for debugging
+        return jsonify({'status': 'error', 'analysis': f"AI Error: {str(e)}"})
+
 
 def get_real_docker_stats():
     stats_dict = {}

@@ -772,15 +772,14 @@ checkSpeedtest();
 // Force Load Logs Function needed for manual refresh
 if (typeof window !== 'undefined') {
     window.loadLogs = loadLogs;
-    window.analyzeLogsAI = analyzeLogsAI;
+    window.analyzeLog = analyzeLog;
 }
 
 /* --- AI Log Analysis --- */
-function analyzeLogsAI() {
+function analyzeLog() {
     const modalEl = document.getElementById('aiAnalysisModal');
     if (!modalEl) {
-        console.error("Modal not found!");
-        alert("Lỗi: Không tìm thấy cửa sổ AI!");
+        alert("Error: UI Component Missing");
         return;
     }
 
@@ -788,7 +787,7 @@ function analyzeLogsAI() {
     const loading = document.getElementById('ai-loading');
     const result = document.getElementById('ai-result');
 
-    // Reset UI
+    // Reset & Show Modal
     if (loading) loading.classList.remove('d-none');
     if (result) {
         result.classList.add('d-none');
@@ -797,19 +796,14 @@ function analyzeLogsAI() {
     
     modal.show();
 
-    // Call API
-    fetch('/api/ai/analyze_log', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    })
+    // Call API (GET)
+    fetch('/api/analyze_log')
     .then(response => response.json())
     .then(data => {
         if (loading) loading.classList.add('d-none');
         if (result) result.classList.remove('d-none');
         
-        if (data.success) {
+        if (data.status === 'success') {
             // Render Markdown
             if (typeof marked !== 'undefined' && marked.parse) {
                 result.innerHTML = marked.parse(data.analysis);
@@ -817,14 +811,15 @@ function analyzeLogsAI() {
                 result.innerText = data.analysis;
             }
         } else {
-            result.innerHTML = '<div class="alert alert-danger">Lỗi AI: ' + (data.error || "Unknown Error") + '</div>';
+            result.innerHTML = '<div class="alert alert-danger">AI Error: ' + (data.analysis || "Unknown Error") + '</div>';
         }
     })
     .catch(err => {
         if (loading) loading.classList.add('d-none');
         if (result) {
             result.classList.remove('d-none');
-            result.innerHTML = '<div class="alert alert-danger">Lỗi kết nối: ' + err + '</div>';
+            result.innerHTML = '<div class="alert alert-danger">Connection Error: ' + err + '</div>';
         }
     });
 }
+window.analyzeLog = analyzeLog;
