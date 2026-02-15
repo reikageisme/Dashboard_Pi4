@@ -323,19 +323,6 @@ def get_real_docker_stats():
                             # So mark it as needing fallback
                             stats_dict[name] = {'cpu': cpu, 'mem': 'BATCH_FALLBACK'} 
                         except:
-<<<<<<< HEAD
-                            stats_dict[name] = {'cpu': cpu, 'mem': mem_used}
-                    else:
-                        stats_dict[name] = {
-                            'cpu': cpu,
-                            'mem': mem_used
-                        }
-        return stats_dict
-    except Exception as e:
-        print(f"Error getting docker stats: {e}")
-        return {}
-        
-=======
                             pass
                     else:
                         stats_dict[name] = {'cpu': cpu, 'mem': mem_used}
@@ -478,7 +465,6 @@ def install_app():
     # For MVP, we'll just simulate success
     return jsonify({"success": True, "message": f"Installing {app_name} (Simulation)"})
 
->>>>>>> 76f6235 (Update: Add Pi-hole, App Store, Network & Storage tabs)
 def get_container_memory_usage(container):
     try:
         # Get PID of the container's main process
