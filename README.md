@@ -172,7 +172,7 @@ sudo timedatectl set-timezone Asia/Ho_Chi_Minh
 
 **ReiKage** - GitHub: [@reikageisme](https://www.google.com/search?q=https://github.com/reikageisme)
 
-* *A passionate DevOps engineer and HomeLab enthusiast dedicated to building efficient, open-source infrastructure tools.*
+* *A passionate CyberSecurity engineer and HomeLab enthusiast dedicated to building efficient, open-source infrastructure tools.*
 
 ## 🤝 Contributing
 
@@ -181,8 +181,3 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 ## 📝 License
 
 This project is licensed under the **MIT License** - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
-
-```
-Bác thấy bản này đã đủ "uy tín" để Release v2.0 chưa? Bấm commit và lên mây thôi bác ơi! 🚀😎
-
-```
