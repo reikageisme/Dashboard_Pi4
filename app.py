@@ -31,8 +31,11 @@ def login_required(f):
     return decorated_function
 
 # Routes
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'GET':
+        return redirect('/')
+        
     data = request.json
     if data.get('username') == 'admin' and data.get('password') == 'Phamtuananh4607?/':
         session['logged_in'] = True
