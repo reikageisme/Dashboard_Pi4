@@ -323,8 +323,8 @@ def analyze_log():
              return jsonify({'status': 'success', 'analysis': 'No significant logs found recently.'})
 
         # 2. Call Gemini
-        # Model: gemini-1.5-flash (Fast & Efficient)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Model: gemini-2.0-flash-exp (Latest & Fastest)
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         prompt = f"""
         You are an expert DevOps Engineer. Analyze the following Linux system logs from a Raspberry Pi:
