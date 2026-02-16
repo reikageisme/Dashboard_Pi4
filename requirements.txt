@@ -8,3 +8,6 @@ speedtest-cli
 requests
 google-genai
 waitress
+python-dotenv
+flask-socketio
+eventlet

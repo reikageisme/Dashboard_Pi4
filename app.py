@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 import os
 import time
 import threading
@@ -12,6 +14,13 @@ from datetime import datetime
 from datetime import timedelta
 from functools import wraps
 from dotenv import load_dotenv
+from flask_socketio import SocketIO, emit, disconnect
+import pty
+import select
+import termios
+import struct
+import fcntl
+import shlex
 
 # Load environment variables from .env file
 load_dotenv()
@@ -53,6 +62,9 @@ except ImportError:
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
 app.permanent_session_lifetime = timedelta(days=7)
+
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
 
 # Auth Decorator
 def login_required(f):
@@ -106,6 +118,17 @@ SPEEDTEST_RESULT = {"ping": 0, "download": 0, "upload": 0, "timestamp": None}
 SPEEDTEST_RUNNING = False
 LAST_NET_IO = {"bytes_sent": 0, "bytes_recv": 0, "time": 0}
 LAST_DISK_IO = {"read_bytes": 0, "write_bytes": 0, "time": 0}
+
+# --- Uptime Monitor Globals ---
+UPTIME_SITES = [
+    {"name": "Google", "url": "https://google.com"},
+    # Add more default sites here or load from a file
+]
+UPTIME_STATUS = {} # {url: {status: 200, latency: 50, last_check: ...}}
+
+# --- Terminal Globals ---
+TERMINAL_SESSIONS = {}
+TERMINAL_FD_MAP = {}
 
 # --- Hardware / GPIO Helper ---
 class FanController:
@@ -175,6 +198,37 @@ def auto_fan_loop():
 # Start Auto Fan Thread
 fan_thread = threading.Thread(target=auto_fan_loop, daemon=True)
 fan_thread.start()
+
+# --- Uptime Monitor Background Thread ---
+def uptime_monitor_loop():
+    while True:
+        for site in UPTIME_SITES:
+            url = site['url']
+            try:
+                start_time = time.time()
+                resp = requests.get(url, timeout=5)
+                latency = int((time.time() - start_time) * 1000)
+                status_code = resp.status_code
+                UPTIME_STATUS[url] = {
+                    "status": "online" if 200 <= status_code < 400 else "offline",
+                    "code": status_code,
+                    "latency": latency,
+                    "last_check": datetime.now().strftime("%H:%M:%S")
+                }
+            except Exception as e:
+                UPTIME_STATUS[url] = {
+                    "status": "offline",
+                    "code": "ERR",
+                    "latency": 0,
+                    "last_check": datetime.now().strftime("%H:%M:%S"),
+                    "error": str(e)
+                }
+        socketio.sleep(30) # Use socketio.sleep for greenlet compatibility if using eventlet
+
+# Start Monitor Thread
+monitor_thread = threading.Thread(target=uptime_monitor_loop, daemon=True) # Or socketio.start_background_task
+# Ideally use socketio.start_background_task if fully committed to eventlet, but thread works for now with monkey patching
+# monitor_thread.start() 
 
 # --- Routes ---
 @app.route('/api/stats')
@@ -333,6 +387,137 @@ def system_log():
         return jsonify({'log': final_log})
     except Exception as e:
         return jsonify({'log': f"Lỗi đọc log: {str(e)}"})
+
+# --- Uptime Monitor Routes ---
+@app.route('/api/uptime/list', methods=['GET'])
+@login_required
+def uptime_list():
+    data = []
+    for site in UPTIME_SITES:
+        url = site['url']
+        status = UPTIME_STATUS.get(url, {"status": "pending", "code": 0, "latency": 0})
+        data.append({
+            "name": site.get('name', url),
+            "url": url,
+            "status": status.get("status"),
+            "code": status.get("code"),
+            "latency": status.get("latency"),
+            "last_check": status.get("last_check")
+        })
+    return jsonify(data)
+
+@app.route('/api/uptime/add', methods=['POST'])
+@login_required
+def uptime_add():
+    data = request.json
+    name = data.get('name')
+    url = data.get('url')
+    if name and url:
+        UPTIME_SITES.append({'name': name, 'url': url})
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Missing name or url"})
+
+@app.route('/api/uptime/remove', methods=['POST'])
+@login_required
+def uptime_remove():
+    url = request.json.get('url')
+    global UPTIME_SITES
+    UPTIME_SITES = [s for s in UPTIME_SITES if s['url'] != url]
+    return jsonify({"success": True})
+
+# --- File Manager Routes ---
+BASE_DIR = os.path.expanduser('~')
+
+@app.route('/api/files/list')
+@login_required
+def file_list():
+    req_path = request.args.get('path', '')
+    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
+    
+    # Security check: Ensure within BASE_DIR
+    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
+        return jsonify({"error": "Access denied"}), 403
+        
+    if not os.path.exists(abs_path):
+        return jsonify({"error": "Path not found"}), 404
+        
+    files = []
+    try:
+        with os.scandir(abs_path) as entries:
+            for entry in entries:
+                files.append({
+                    "name": entry.name,
+                    "is_dir": entry.is_dir(),
+                    "size": entry.stat().st_size,
+                    "mod_time": datetime.fromtimestamp(entry.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+                })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        
+    # Sort: folders first, then files
+    files.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
+    return jsonify({"path": req_path, "files": files})
+
+@app.route('/api/files/read')
+@login_required
+def file_read():
+    req_path = request.args.get('path', '')
+    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
+    
+    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
+        return jsonify({"error": "Access denied"}), 403
+        
+    if not os.path.isfile(abs_path):
+        return jsonify({"error": "File not found"}), 404
+        
+    try:
+        with open(abs_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return jsonify({"content": content})
+    except Exception as e:
+        return jsonify({"error": f"Error reading file: {str(e)}"}), 500
+
+@app.route('/api/files/save', methods=['POST'])
+@login_required
+def file_save():
+    data = request.json
+    req_path = data.get('path', '')
+    content = data.get('content', '')
+    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
+    
+    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
+        return jsonify({"error": "Access denied"}), 403
+
+    try:
+        with open(abs_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/files/upload', methods=['POST'])
+@login_required
+def file_upload():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+        
+    file = request.files['file']
+    req_path = request.form.get('path', '')
+    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
+    
+    if not os.path.isdir(abs_path):
+        return jsonify({"error": "Target is not a directory"}), 400
+
+    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
+        return jsonify({"error": "Access denied"}), 403
+
+    try:
+        filename = file.filename
+        save_path = os.path.join(abs_path, filename)
+        file.save(save_path)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/analyze_log', methods=['GET', 'POST'])
 @login_required
@@ -826,7 +1011,95 @@ def run_speedtest():
     thread.start()
     return jsonify({"status": "started"})
 
-if __name__ == '__main__':
+# --- Terminal SocketIO Logic ---
+def read_terminal_output(fd, sid):
+    """ Reads from PTY and emits to socket """
+    try:
+        while True:
+            # Check if session still exists
+            if sid not in TERMINAL_SESSIONS:
+                break
+                
+            try:
+                # Use select to check for data
+                (r, w, x) = select.select([fd], [], [], 1.0)
+                if fd in r:
+                    data = os.read(fd, 1024)
+                    if not data:
+                        break # EOF
+                    socketio.emit('output', data.decode('utf-8', errors='ignore'), room=sid, namespace='/terminal')
+            except OSError:
+                break
+    except Exception as e:
+        print(f"Terminal Read Error: {e}")
+    finally:
+        # Cleanup if loop exits
+        pass
 
-    print("🚀 Bật server Production (Waitress) tại cổng 5000...")
-    serve(app, host='0.0.0.0', port=5000)
+@socketio.on('connect', namespace='/terminal')
+def terminal_connect():
+    if not session.get('logged_in'):
+        return False
+
+    sid = request.sid
+    # Create PTY
+    (child_pid, fd) = pty.fork()
+    
+    if child_pid == 0:
+        # Child: set TERM and run bash
+        os.environ['TERM'] = 'xterm-256color'
+        os.chdir(os.path.expanduser('~'))
+        # Using bash
+        os.execv('/bin/bash', ['bash'])
+    else:
+        # Parent
+        TERMINAL_SESSIONS[sid] = {"fd": fd, "pid": child_pid}
+        
+        # Start reader task
+        socketio.start_background_task(target=read_terminal_output, fd=fd, sid=sid)
+        print(f"Terminal session started: {sid} (PID: {child_pid})")
+
+@socketio.on('disconnect', namespace='/terminal')
+def terminal_disconnect():
+    sid = request.sid
+    if sid in TERMINAL_SESSIONS:
+        info = TERMINAL_SESSIONS.pop(sid)
+        fd = info['fd']
+        pid = info['pid']
+        try:
+            os.close(fd)
+            os.kill(pid, 9)
+        except:
+            pass
+        print(f"Terminal session ended: {sid}")
+
+@socketio.on('input', namespace='/terminal')
+def terminal_input(data):
+    sid = request.sid
+    if sid in TERMINAL_SESSIONS:
+        fd = TERMINAL_SESSIONS[sid]['fd']
+        try:
+            os.write(fd, data.encode())
+        except Exception as e:
+            print(f"Write Error: {e}")
+
+@socketio.on('resize', namespace='/terminal')
+def terminal_resize(data):
+    sid = request.sid
+    if sid in TERMINAL_SESSIONS:
+        fd = TERMINAL_SESSIONS[sid]['fd']
+        cols = data.get('cols', 80)
+        rows = data.get('rows', 24)
+        try:
+            winsize = struct.pack("HHHH", rows, cols, 0, 0)
+            fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+        except:
+            pass
+
+if __name__ == '__main__':
+    # Start Monitor Thread
+    socketio.start_background_task(target=uptime_monitor_loop)
+
+    print("🚀 Bật server Production (SocketIO) tại cổng 5000...")
+    socketio.run(app, host='0.0.0.0', port=5000)
+    # serve(app, host='0.0.0.0', port=5000)
