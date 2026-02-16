@@ -41,8 +41,6 @@
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <!-- Ace Editor -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
 </head>
 <body>
     <div class="container pb-5">
@@ -90,9 +88,6 @@
             </li>
             <li class="nav-item">
                 <button class="nav-link" id="uptime-tab" data-bs-toggle="tab" data-bs-target="#uptime-pane" type="button">🌐 Uptime</button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link" id="files-tab" data-bs-toggle="tab" data-bs-target="#files-pane" type="button">📂 Files</button>
             </li>
             <li class="nav-item">
                 <button class="nav-link" id="term-tab" data-bs-toggle="tab" data-bs-target="#term-pane" type="button">💻 Terminal</button>
@@ -431,36 +426,6 @@
                 </div>
             </div>
 
-            <!-- FILES TAB -->
-            <div class="tab-pane fade" id="files-pane" role="tabpanel">
-                <div class="card mt-3" style="height: 75vh;">
-                    <div class="card-header d-flex justify-content-between align-items-center py-2">
-                        <div>
-                            <span id="current-path" class="badge bg-secondary me-2">~/</span>
-                            <button class="btn btn-sm btn-outline-light" onclick="loadFileList('.')"><i class="fa-solid fa-rotate"></i> Refresh</button>
-                            <button class="btn btn-sm btn-outline-light" onclick="navigateUp()"><i class="fa-solid fa-arrow-up"></i> Up</button>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <input type="file" id="file-upload-input" style="display: none;" onchange="uploadFile()">
-                            <button class="btn btn-sm btn-success" onclick="document.getElementById('file-upload-input').click()"><i class="fa-solid fa-upload"></i> Upload</button>
-                            <button class="btn btn-sm btn-primary" onclick="saveFile()"><i class="fa-solid fa-save"></i> Save</button>
-                        </div>
-                    </div>
-                    <div class="card-body p-0 d-flex h-100">
-                        <!-- File Tree -->
-                        <div class="border-end border-secondary p-0" style="width: 25%; overflow-y: auto; background: rgba(0,0,0,0.3);">
-                            <div class="list-group list-group-flush" id="file-list">
-                                <!-- Dynamic List -->
-                            </div>
-                        </div>
-                        <!-- Editor -->
-                        <div class="flex-grow-1 p-0 position-relative">
-                            <div id="editor" style="position: absolute; top: 0; right: 0; bottom: 0; left: 0;"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- LOGS TAB -->
             <div class="tab-pane fade" id="term-pane" role="tabpanel">
                  <div class="card mt-3 bg-black">
@@ -473,7 +438,7 @@
                         </div>
                     </div>
                     <div class="card-body p-0">
-                        <div id="log-container" class="bg-black text-white p-2" style="height: 600px; width: 100%; overflow-y: auto; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;">
+                        <div id="log-container" class="bg-black p-2" style="color: #00ff00; height: 600px; width: 100%; overflow-y: auto; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;">
                             Loading logs...
                         </div>
                     </div>
@@ -556,141 +521,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}?v=3"></script>
     <script>
-        // --- 2. File Manager ---
-        let currentPath = '.';
-        let editor;
 
-        function initEditor() {
-            if(editor) return;
-            editor = ace.edit("editor");
-            editor.setTheme("ace/theme/twilight"); // Dark theme
-            editor.session.setMode("ace/mode/python"); // Default
-            editor.setFontSize(14);
-        }
-
-        function loadFileList(path) {
-            currentPath = path || currentPath;
-            document.getElementById('current-path').innerText = currentPath === '.' ? '~/' : currentPath;
-
-            fetch(`/api/files/list?path=${encodeURIComponent(currentPath)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    const listEl = document.getElementById('file-list');
-                    listEl.innerHTML = '';
-                    
-                    data.files.forEach(f => {
-                         const item = document.createElement('a');
-                         item.className = 'list-group-item list-group-item-action bg-transparent text-white border-bottom border-secondary';
-                         item.style.cursor = 'pointer';
-                         
-                         let icon = f.is_dir ? '<i class="fa-solid fa-folder text-warning"></i>' : '<i class="fa-solid fa-file-code text-info"></i>';
-                         item.innerHTML = `<div class="d-flex justify-content-between">
-                                                <span>${icon} ${f.name}</span>
-                                                <small class="text-muted">${f.size} B</small>
-                                           </div>`;
-                         
-                         item.onclick = () => {
-                             if(f.is_dir) {
-                                 loadFileList(path === '.' ? f.name : path + '/' + f.name);
-                             } else {
-                                 loadFile(path === '.' ? f.name : path + '/' + f.name);
-                             }
-                         };
-                         listEl.appendChild(item);
-                    });
-                });
-        }
-        
-        function navigateUp() {
-            if(currentPath === '.') return;
-            let parts = currentPath.split('/');
-            parts.pop();
-            let newPath = parts.length === 0 ? '.' : parts.join('/');
-            // If empty string result from split join
-            if(newPath === '') newPath = '.';
-            loadFileList(newPath);
-        }
-
-        function loadFile(filePath) {
-            fetch(`/api/files/read?path=${encodeURIComponent(filePath)}`)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.error) {
-                        alert(data.error);
-                        return;
-                    }
-                    if(!editor) initEditor();
-                    
-                    // Detect mode based on extension
-                    let ext = filePath.split('.').pop();
-                    let mode = 'ace/mode/text';
-                    if(ext === 'py') mode = 'ace/mode/python';
-                    if(ext === 'js') mode = 'ace/mode/javascript';
-                    if(ext === 'html') mode = 'ace/mode/html';
-                    if(ext === 'css') mode = 'ace/mode/css';
-                    if(ext === 'json') mode = 'ace/mode/json';
-                    if(ext === 'sh') mode = 'ace/mode/sh';
-                    if(ext === 'yml' || ext === 'yaml') mode = 'ace/mode/yaml';
-
-                    editor.session.setMode(mode);
-                    editor.setValue(data.content, -1); // -1 moves cursor to start
-                    
-                    // Store current editing file path
-                    editor.dataset = {path: filePath};
-                    document.getElementById('current-path').innerText = filePath;
-                });
-        }
-
-        function saveFile() {
-             if(!editor || !editor.dataset || !editor.dataset.path) return;
-             
-             const content = editor.getValue();
-             const path = editor.dataset.path;
-             
-             fetch('/api/files/save', {
-                 method: 'POST',
-                 headers: {'Content-Type': 'application/json'},
-                 body: JSON.stringify({path: path, content: content})
-             })
-             .then(res => res.json())
-             .then(data => {
-                 if(data.success) alert('Saved!');
-                 else alert('Error: ' + data.error);
-             });
-        }
-
-        function uploadFile() {
-            const input = document.getElementById('file-upload-input');
-            if(input.files.length === 0) return;
-            
-            const formData = new FormData();
-            formData.append('file', input.files[0]);
-            formData.append('path', currentPath); // Upload to current folder
-            
-            fetch('/api/files/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    alert('Uploaded!');
-                    loadFileList(currentPath);
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            });
-        }
-
-        // Init files when tab shown
-        document.getElementById('files-tab').addEventListener('shown.bs.tab', function () {
-             loadFileList(currentPath);
-             initEditor();
-        });
 
 
         // --- 3. Uptime Monitor ---

@@ -435,100 +435,6 @@ def uptime_remove():
     UPTIME_SITES = [s for s in UPTIME_SITES if s['url'] != url]
     return jsonify({"success": True})
 
-# --- File Manager Routes ---
-BASE_DIR = os.path.expanduser('~')
-
-@app.route('/api/files/list')
-@login_required
-def file_list():
-    req_path = request.args.get('path', '')
-    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
-    
-    # Security check: Ensure within BASE_DIR
-    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
-        return jsonify({"error": "Access denied"}), 403
-        
-    if not os.path.exists(abs_path):
-        return jsonify({"error": "Path not found"}), 404
-        
-    files = []
-    try:
-        with os.scandir(abs_path) as entries:
-            for entry in entries:
-                files.append({
-                    "name": entry.name,
-                    "is_dir": entry.is_dir(),
-                    "size": entry.stat().st_size,
-                    "mod_time": datetime.fromtimestamp(entry.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
-                })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-        
-    # Sort: folders first, then files
-    files.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
-    return jsonify({"path": req_path, "files": files})
-
-@app.route('/api/files/read')
-@login_required
-def file_read():
-    req_path = request.args.get('path', '')
-    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
-    
-    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
-        return jsonify({"error": "Access denied"}), 403
-        
-    if not os.path.isfile(abs_path):
-        return jsonify({"error": "File not found"}), 404
-        
-    try:
-        with open(abs_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return jsonify({"content": content})
-    except Exception as e:
-        return jsonify({"error": f"Error reading file: {str(e)}"}), 500
-
-@app.route('/api/files/save', methods=['POST'])
-@login_required
-def file_save():
-    data = request.json
-    req_path = data.get('path', '')
-    content = data.get('content', '')
-    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
-    
-    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
-        return jsonify({"error": "Access denied"}), 403
-
-    try:
-        with open(abs_path, 'w', encoding='utf-8') as f:
-            f.write(content)
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/api/files/upload', methods=['POST'])
-@login_required
-def file_upload():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-        
-    file = request.files['file']
-    req_path = request.form.get('path', '')
-    abs_path = os.path.join(BASE_DIR, req_path.lstrip('/'))
-    
-    if not os.path.isdir(abs_path):
-        return jsonify({"error": "Target is not a directory"}), 400
-
-    if not os.path.commonprefix([abs_path, BASE_DIR]) == BASE_DIR:
-        return jsonify({"error": "Access denied"}), 403
-
-    try:
-        filename = file.filename
-        save_path = os.path.join(abs_path, filename)
-        file.save(save_path)
-        return jsonify({"success": True})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/api/analyze_log', methods=['GET', 'POST'])
 @login_required
 def analyze_log():
@@ -1111,11 +1017,8 @@ if __name__ == '__main__':
     socketio.start_background_task(target=uptime_monitor_loop)
 
     print("🚀 Bật server Production (SocketIO) tại cổng 5000...")
-    # Thêm allow_unsafe_werkzeug=True để tránh lỗi RuntimeError nếu eventlet không load được
-    # Nhưng tốt nhất là nên chạy với eventlet, gevent hoặc uwsgi
+    # Thêm allow_unsafe_werkzeug=True để tránh lỗi RuntimeError
     try:
-        import eventlet
-        socketio.run(app, host='0.0.0.0', port=5000)
-    except Exception as e:
-        print(f"Không thể chạy Eventlet: {e}, chuyển sang chế độ fallback (Werkzeug)")
         socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    except Exception as e:
+        print(f"Lỗi khởi động: {e}")
