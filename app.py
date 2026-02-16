@@ -6,10 +6,16 @@ import docker
 import speedtest
 import subprocess
 import requests
+import random
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
 from datetime import datetime
 from datetime import timedelta
 from functools import wraps
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 # Thay thế thư viện cũ google.generativeai bằng google-genai mới
 from google import genai
 from google.genai import types
@@ -17,8 +23,25 @@ from waitress import serve
 
 
 # Setup Gemini AI (New SDK)
-GEMINI_API_KEY = "AIzaSyAW4MVFXPbfIdkLSH8kqVgsWgFolc5AwEM"  # Replace if changed
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# List of API keys for rotation/fallback
+GEMINI_API_KEYS = [
+    os.getenv("GEMINI_API_KEY_0"),
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3")
+]
+# Filter out None values in case some keys are missing
+GEMINI_API_KEYS = [key for key in GEMINI_API_KEYS if key]
+
+if not GEMINI_API_KEYS:
+    # Raise error if no keys are found to prevent hardcoding
+    # GEMINI_API_KEY = "" # Removed hardcoded key
+    print("Error: No Gemini API keys found in .env. Please add GEMINI_API_KEY_0 through GEMINI_API_KEY_3.")
+    gemini_client = None
+else:
+    # Select a random key to distribute load
+    GEMINI_API_KEY = random.choice(GEMINI_API_KEYS)
+    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 
 try:
     import lgpio
