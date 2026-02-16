@@ -32,39 +32,44 @@ from waitress import serve
 
 
 # Setup Gemini AI (New SDK)
-# List of API keys for rotation/fallback
-GEMINI_API_KEYS = [
-    os.getenv("GEMINI_API_KEY_0"),
-    os.getenv("GEMINI_API_KEY_1"),
-    os.getenv("GEMINI_API_KEY_2"),
-    os.getenv("GEMINI_API_KEY_3")
-]
-# Filter out None values in case some keys are missing
-GEMINI_API_KEYS = [key for key in GEMINI_API_KEYS if key]
-
-if not GEMINI_API_KEYS:
-    # Raise error if no keys are found to prevent hardcoding
-    # GEMINI_API_KEY = "" # Removed hardcoded key
-    print("Error: No Gemini API keys found in .env. Please add GEMINI_API_KEY_0 through GEMINI_API_KEY_3.")
-    gemini_client = None
-else:
-    # Select a random key to distribute load
-    GEMINI_API_KEY = random.choice(GEMINI_API_KEYS)
-    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
-
 try:
-    import lgpio
-    GPIO_AVAILABLE = True
-except ImportError:
-    GPIO_AVAILABLE = False
-    print("lgpio not found, running in simulation mode for Fan Control")
+    # List of API keys for rotation/fallback
+    GEMINI_API_KEYS = [
+        os.getenv("GEMINI_API_KEY_0"),
+        os.getenv("GEMINI_API_KEY_1"),
+        os.getenv("GEMINI_API_KEY_2"),
+        os.getenv("GEMINI_API_KEY_3")
+    ]
+    # Filter out None values in case some keys are missing
+    GEMINI_API_KEYS = [key for key in GEMINI_API_KEYS if key]
+    
+    if not GEMINI_API_KEYS:
+        print("Error: No Gemini API keys found in .env. Please add GEMINI_API_KEY_0 through GEMINI_API_KEY_3.")
+        gemini_client = None
+    else:
+        # Select a random key to distribute load
+        GEMINI_API_KEY = random.choice(GEMINI_API_KEYS)
+        gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+except Exception as e:
+    print(f"Gemini Init Error: {e}")
+    gemini_client = None
+
+# Disable GPIO for now to debug crash
+GPIO_AVAILABLE = False
+# try:
+#     import lgpio
+#     GPIO_AVAILABLE = True
+# except ImportError:
+#     GPIO_AVAILABLE = False
+#     print("lgpio not found, running in simulation mode for Fan Control")
+
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'default_secret_key_change_me')
 app.permanent_session_lifetime = timedelta(days=7)
 
-# Initialize SocketIO
-socketio = SocketIO(app, cors_allowed_origins='*', async_mode='eventlet')
+# Initialize SocketIO (threading mode for stability)
+socketio = SocketIO(app, cors_allowed_origins='*', async_mode='threading')
 
 # Auth Decorator
 def login_required(f):
@@ -372,6 +377,11 @@ def system_power():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
     return jsonify({"success": False, "error": "Invalid action"})
+
+@app.route('/ssh')
+@login_required
+def ssh_page():
+    return render_template('ssh.html')
 
 @app.route('/api/system_log')
 @login_required
@@ -1101,5 +1111,11 @@ if __name__ == '__main__':
     socketio.start_background_task(target=uptime_monitor_loop)
 
     print("🚀 Bật server Production (SocketIO) tại cổng 5000...")
-    socketio.run(app, host='0.0.0.0', port=5000)
-    # serve(app, host='0.0.0.0', port=5000)
+    # Thêm allow_unsafe_werkzeug=True để tránh lỗi RuntimeError nếu eventlet không load được
+    # Nhưng tốt nhất là nên chạy với eventlet, gevent hoặc uwsgi
+    try:
+        import eventlet
+        socketio.run(app, host='0.0.0.0', port=5000)
+    except Exception as e:
+        print(f"Không thể chạy Eventlet: {e}, chuyển sang chế độ fallback (Werkzeug)")
+        socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi SSH Terminal</title>
+    <link rel="icon" type="image/x-icon" href="https://www.raspberrypi.com/favicon.ico">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body { margin: 0; background: #1e1e1e; overflow: hidden; }
+        #terminal-container { width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="terminal-container"></div>
+
+    <script>
+        let term;
+        let socket;
+        let fitAddon;
+
+        function initTerminal() {
+            term = new Terminal({
+                cursorBlink: true,
+                macOptionIsMeta: true,
+                scrollback: 1000,
+                fontSize: 14,
+                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                theme: {
+                    background: '#1e1e1e',
+                }
+            });
+            
+            fitAddon = new FitAddon.FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(document.getElementById('terminal-container'));
+            fitAddon.fit();
+
+            socket = io.connect('/terminal', {transports: ['websocket', 'polling']});
+
+            socket.on('connect', function() {
+                term.write('\r\n*** Connected to Pi SSH ***\r\n');
+                // Wait a bit then resize
+                setTimeout(() => {
+                    fitAddon.fit();
+                    socket.emit('resize', {cols: term.cols, rows: term.rows});
+                    term.focus();
+                }, 500);
+            });
+
+            socket.on('disconnect', function() {
+                term.write('\r\n*** Disconnected ***\r\n');
+            });
+
+            socket.on('output', function(data) {
+                term.write(data);
+            });
+
+            term.onData(function(data) {
+                socket.emit('input', data);
+            });
+
+            window.addEventListener('resize', () => {
+                fitAddon.fit();
+                socket.emit('resize', {cols: term.cols, rows: term.rows});
+            });
+        }
+        
+        initTerminal();
+    </script>
+</body>
+</html>
