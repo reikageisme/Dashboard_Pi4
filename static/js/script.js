@@ -435,18 +435,14 @@ function disablePihole(duration) {
     });
 }
 
-// 4. App Store
+// 4. App Store (Removed)
+/*
 function installApp(appName) {
     showConfirmModal('Install App', `Are you sure you want to install ${appName}? This will run 'docker-compose up'.`, () => {
-        fetch('/api/appstore/install', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({app_name: appName})
-        })
-        .then(r=>r.json())
-        .then(d => showToast('App Store', d.message));
+        // Removed as per request
     });
 }
+*/
 
 // --- Helper: Custom Confirm Modal ---
 function formatBytes(bytes, decimals = 2) {

@@ -10,8 +10,7 @@ import subprocess
 import requests
 import random
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
 from flask_socketio import SocketIO, emit, disconnect
@@ -20,15 +19,12 @@ import select
 import termios
 import struct
 import fcntl
-import shlex
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Thay thế thư viện cũ google.generativeai bằng google-genai mới
+# Gemini AI (New SDK)
 from google import genai
-from google.genai import types
-from waitress import serve
 
 
 # Setup Gemini AI (New SDK)
@@ -711,15 +707,6 @@ def pihole_disable():
         return jsonify(resp.json())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-# 4. App Store (Simple implementation)
-@app.route('/api/appstore/install', methods=['POST'])
-@login_required
-def install_app():
-    app_name = request.json.get('app_name')
-    # Define map of app_name -> docker-compose content or file path
-    # For MVP, we'll just simulate success
-    return jsonify({"success": True, "message": f"Installing {app_name} (Simulation)"})
 
 def get_container_memory_usage(container):
     try:

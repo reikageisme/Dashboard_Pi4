@@ -84,9 +84,6 @@
                 <button class="nav-link" id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage-pane" type="button">💾 Storage</button>
             </li>
             <li class="nav-item">
-                <button class="nav-link" id="appstore-tab" data-bs-toggle="tab" data-bs-target="#appstore-pane" type="button">📦 Store</button>
-            </li>
-            <li class="nav-item">
                 <button class="nav-link" id="uptime-tab" data-bs-toggle="tab" data-bs-target="#uptime-pane" type="button">🌐 Uptime</button>
             </li>
             <li class="nav-item">
@@ -353,45 +350,6 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- APP STORE TAB -->
-            <div class="tab-pane fade" id="appstore-pane" role="tabpanel">
-                <div class="alert alert-info"><i class="fa-solid fa-info-circle"></i> Simple Docker-Compose Installer (Mockup)</div>
-                <div class="row">
-                    <!-- Apps List -->
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                             <div class="card-body text-center">
-                                <i class="fa-solid fa-film fa-3x text-primary mb-3"></i>
-                                <h5 class="card-title">Jellyfin</h5>
-                                <p class="card-text text-muted">The Free Software Media System.</p>
-                                <button class="btn btn-success" onclick="installApp('jellyfin')">Install</button>
-                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                             <div class="card-body text-center">
-                                <i class="fa-solid fa-cloud fa-3x text-info mb-3"></i>
-                                <h5 class="card-title">Nextcloud</h5>
-                                <p class="card-text text-muted">A safe home for all your data.</p>
-                                <button class="btn btn-success" onclick="installApp('nextcloud')">Install</button>
-                             </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                             <div class="card-body text-center">
-                                <i class="fa-solid fa-heart-pulse fa-3x text-success mb-3"></i>
-                                <h5 class="card-title">Uptime Kuma</h5>
-                                <p class="card-text text-muted">Self-hosted monitoring tool.</p>
-                                <button class="btn btn-success" onclick="installApp('kuma')">Install</button>
-                             </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- UPTIME TAB -->
             <div class="tab-pane fade" id="uptime-pane" role="tabpanel">
                 <div class="card mt-3">
